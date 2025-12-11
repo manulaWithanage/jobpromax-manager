@@ -1,14 +1,14 @@
 "use client";
 
-import Sidebar from "@/components/layout/Sidebar";
 import { useProject } from "@/context/ProjectContext";
 import { useRole } from "@/context/RoleContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { RoadmapPhase, Deliverable } from "@/lib/mockData";
-import { Trash2, Plus, Save, Map, CheckCircle2, Circle } from "lucide-react";
+import { RoadmapPhase, Deliverable } from "@/types";
+import { Trash2, Plus, Save, Map, CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { DeleteConfirmationModal } from "@/components/ui/DeleteConfirmationModal";
 
 export default function ManagerRoadmapPage() {
     const { roadmap, updatePhase, addPhase, deletePhase } = useProject();
@@ -19,6 +19,12 @@ export default function ManagerRoadmapPage() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [formData, setFormData] = useState<Partial<RoadmapPhase>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [isCreating, setIsCreating] = useState(false);
+
+    // Delete Modal State
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [phaseToDelete, setPhaseToDelete] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         if (!isManager && role !== 'manager') {
@@ -26,7 +32,7 @@ export default function ManagerRoadmapPage() {
         }
     }, [isManager, role, router]);
 
-    if (!isManager) return null;
+
 
     const handleEdit = (phase: RoadmapPhase) => {
         setEditingId(phase.id);
@@ -48,9 +54,21 @@ export default function ManagerRoadmapPage() {
     const handleSave = async (id: string) => {
         if (formData) {
             if (!validateForm()) return;
-            await updatePhase(id, formData);
-            setEditingId(null);
-            setErrors({});
+
+            console.log('📤 Sending UPDATE request to backend...');
+            console.log('Phase ID:', id);
+            console.log('Updated data:', JSON.stringify(formData, null, 2));
+
+            try {
+                await updatePhase(id, formData);
+                console.log('✅ Phase updated successfully!');
+                alert('✅ Phase updated successfully!');
+                setEditingId(null);
+                setErrors({});
+            } catch (err: any) {
+                console.error('❌ Failed to update phase:', err);
+                alert(`❌ Failed to update phase: ${err.message}`);
+            }
         }
     };
 
@@ -60,15 +78,49 @@ export default function ManagerRoadmapPage() {
         setErrors({});
     };
 
-    const handleDelete = async (id: string) => {
-        if (confirm("Are you sure you want to delete this phase? This cannot be undone.")) {
-            await deletePhase(id);
+    const onDeleteClick = (id: string) => {
+        console.log('🔘 DELETE REQUESTED for ID:', id);
+
+        // Validate ID before opening modal
+        if (!id || id === 'undefined' || id === 'null') {
+            console.error('❌ CRITICAL: Invalid phase ID detected!');
+            alert(`❌ Cannot delete phase: Invalid ID (${id}). Please refresh.`);
+            return;
+        }
+
+        setPhaseToDelete(id);
+        setDeleteModalOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!phaseToDelete) return;
+
+        setIsDeleting(true);
+        console.log('🗑️ Confirmed delete for ID:', phaseToDelete);
+
+        try {
+            await deletePhase(phaseToDelete);
+            console.log('✅ Phase deleted successfully!');
+
+            // Close edit mode if deleting the currently edited phase
+            if (editingId === phaseToDelete) {
+                setEditingId(null);
+                setFormData({});
+                setErrors({});
+            }
+
+            setDeleteModalOpen(false);
+            setPhaseToDelete(null);
+        } catch (err: any) {
+            console.error('❌ Failed to delete phase:', err);
+            alert(`❌ Failed to delete phase: ${err.message}`);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
     const handleAddPhase = async () => {
-        const newPhase: RoadmapPhase = {
-            id: `p${Date.now()}`,
+        const newPhase: any = {
             phase: 'New Phase',
             date: 'Q4 2025',
             title: 'Untitled Phase',
@@ -76,12 +128,36 @@ export default function ManagerRoadmapPage() {
             status: 'upcoming',
             deliverables: []
         };
-        await addPhase(newPhase);
-        // Auto start editing
-        setEditingId(newPhase.id);
-        setFormData(newPhase);
-        setErrors({});
+        try {
+            console.log('📤 Sending CREATE request to backend...');
+            console.log('New phase data:', JSON.stringify(newPhase, null, 2));
+            setIsCreating(true);
+
+            await addPhase(newPhase as RoadmapPhase);
+
+            console.log('✅ Phase created successfully!');
+            console.log('Waiting for roadmap to refresh...');
+            // After addPhase completes, refreshData will run and update roadmap
+            // The useEffect below will auto-edit the newest phase
+        } catch (err: any) {
+            console.error('❌ Failed to create phase:', err);
+            alert(`❌ Failed to create phase: ${err.message}`);
+        } finally {
+            setIsCreating(false);
+        }
     };
+
+    // Auto-edit the newest phase after creation
+    useEffect(() => {
+        if (!isCreating && roadmap.length > 0 && !editingId) {
+            // Check if we just added a new phase (it will be the last one)
+            const latestPhase = roadmap[roadmap.length - 1];
+            if (latestPhase.title === 'Untitled Phase') {
+                setEditingId(latestPhase.id);
+                setFormData(latestPhase);
+            }
+        }
+    }, [roadmap, isCreating]);
 
     // Scroll to new/edited card
     useEffect(() => {
@@ -119,180 +195,266 @@ export default function ManagerRoadmapPage() {
         setFormData({ ...formData, deliverables: newDeliverables });
     };
 
+    // Hooks must run before this return
+    if (!isManager) return null;
+
     return (
-        <div className="flex bg-slate-50/50 min-h-screen font-sans text-slate-900">
-            <Sidebar />
+        <div className="bg-slate-50/50 min-h-screen font-sans text-slate-900 p-8 lg:p-12">
+            <div className="space-y-8">
 
-            <main className="flex-1 ml-72 p-8 lg:p-12 overflow-y-auto">
-                <div className="max-w-4xl mx-auto space-y-8">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-blue-100 rounded-xl">
+                            <Map className="h-8 w-8 text-blue-600" />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Roadmap Manager</h1>
+                            <p className="text-slate-500">Plan and structure upcoming project phases.</p>
+                        </div>
+                    </div>
+                    <Button onClick={handleAddPhase} disabled={isCreating} className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-all duration-200">
+                        {isCreating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                        {isCreating ? "Creating..." : "Add Phase"}
+                    </Button>
+                </div>
 
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-blue-100 rounded-xl">
-                                <Map className="h-8 w-8 text-blue-600" />
-                            </div>
-                            <div>
-                                <h1 className="text-3xl font-bold tracking-tight text-slate-900">Roadmap Manager</h1>
-                                <p className="text-slate-500">Plan and structure upcoming project phases.</p>
+                <div className="space-y-6">
+                    {roadmap.length === 0 && (
+                        <div className="py-12 px-8 bg-white rounded-xl border-2 border-dashed border-slate-200">
+                            <div className="flex items-start gap-4">
+                                <div className="p-3 bg-slate-100 rounded-xl">
+                                    <Map className="h-8 w-8 text-slate-400" />
+                                </div>
+                                <div className="space-y-1">
+                                    <h3 className="text-lg font-bold text-slate-900">No Roadmap Phases</h3>
+                                    <p className="text-slate-500 max-w-md">Your timeline is currently empty. Get started by creating your first project phase to track progress.</p>
+                                    <div className="pt-4">
+                                        <Button onClick={handleAddPhase} variant="outline">
+                                            <Plus className="h-4 w-4 mr-2" /> Create First Phase
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <Button onClick={handleAddPhase} className="bg-blue-600 hover:bg-blue-700">
-                            <Plus className="h-4 w-4 mr-2" /> Add Phase
-                        </Button>
-                    </div>
 
-                    <div className="space-y-6">
-                        {roadmap.map((phase) => (
-                            <Card id={phase.id} key={phase.id} className={`overflow-hidden transition-all duration-300 ${editingId === phase.id ? 'ring-2 ring-blue-400 shadow-lg' : 'hover:shadow-md'}`}>
+                    )}
+                    {roadmap.map((phase) => {
+                        // Debug: Log phase structure for first phase
+                        if (roadmap.indexOf(phase) === 0) {
+                            console.log('📊 [DEBUG] First phase object:', phase);
+                            console.log('📊 [DEBUG] First phase.id:', phase.id);
+                            console.log('📊 [DEBUG] First phase._id:', (phase as any)._id);
+                        }
 
-                                {editingId === phase.id ? (
-                                    /* EDIT MODE */
-                                    <CardContent className="p-6 bg-white space-y-6">
-                                        <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                                            <h3 className="text-lg font-bold text-slate-800">Edit Phase</h3>
-                                            <div className="flex gap-2">
-                                                <Button variant="ghost" onClick={handleCancel}>Cancel</Button>
-                                                <Button onClick={() => handleSave(phase.id)} className="bg-blue-600 hover:bg-blue-700">
-                                                    <Save className="h-4 w-4 mr-2" /> Save Changes
-                                                </Button>
+                        return (
+                            <Card key={phase.id} id={phase.id} className={`group transition-all duration-300 ${editingId === phase.id ? 'ring-2 ring-blue-500 shadow-xl' : 'hover:shadow-md'
+                                }`}>
+                                <CardContent className="p-6">
+                                    {editingId === phase.id ? (
+                                        /* EDIT MODE */
+                                        <div className="space-y-6 animate-in fade-in duration-300">
+                                            <div className="flex items-center justify-between border-b pb-4">
+                                                <h3 className="tex-lg font-bold text-blue-600">Editing Phase</h3>
+                                                <div className="flex items-center gap-2">
+                                                    <Button variant="ghost" onClick={handleCancel}>Cancel</Button>
+                                                    <Button onClick={() => handleSave(phase.id)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                                                        <Save className="h-4 w-4 mr-2" /> Save Changes
+                                                    </Button>
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        <div className="grid md:grid-cols-2 gap-6">
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-semibold uppercase text-slate-500">Phase Label</label>
-                                                <input
-                                                    className={`w-full p-2.5 rounded-lg border ${errors.phase ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-slate-50'} text-sm focus:ring-2 focus:ring-blue-500 outline-none`}
-                                                    value={formData.phase || ''}
-                                                    onChange={(e) => setFormData({ ...formData, phase: e.target.value })}
-                                                />
-                                                {errors.phase && <p className="text-xs text-red-500">{errors.phase}</p>}
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-semibold uppercase text-slate-500">Timeline / Date</label>
-                                                <input
-                                                    className={`w-full p-2.5 rounded-lg border ${errors.date ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-slate-50'} text-sm focus:ring-2 focus:ring-blue-500 outline-none`}
-                                                    value={formData.date || ''}
-                                                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                                />
-                                                {errors.date && <p className="text-xs text-red-500">{errors.date}</p>}
-                                            </div>
-                                            <div className="col-span-2 space-y-2">
-                                                <label className="text-xs font-semibold uppercase text-slate-500">Title</label>
-                                                <input
-                                                    className={`w-full p-2.5 rounded-lg border ${errors.title ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-slate-50'} text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none`}
-                                                    value={formData.title || ''}
-                                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                                />
-                                                {errors.title && <p className="text-xs text-red-500">{errors.title}</p>}
-                                            </div>
-                                            <div className="col-span-2 space-y-2">
-                                                <label className="text-xs font-semibold uppercase text-slate-500">Description</label>
-                                                <textarea
-                                                    className={`w-full p-2.5 rounded-lg border ${errors.description ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-slate-50'} text-sm focus:ring-2 focus:ring-blue-500 outline-none min-h-[80px]`}
-                                                    value={formData.description || ''}
-                                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                                />
-                                                {errors.description && <p className="text-xs text-red-500">{errors.description}</p>}
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-semibold uppercase text-slate-500">Status</label>
-                                                <select
-                                                    className="w-full p-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                                    value={formData.status}
-                                                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                                                >
-                                                    <option value="completed">Completed</option>
-                                                    <option value="current">Current (In Progress)</option>
-                                                    <option value="upcoming">Upcoming</option>
-                                                </select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-semibold uppercase text-slate-500">Health (Optional)</label>
-                                                <select
-                                                    className="w-full p-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                                    value={formData.health || ''}
-                                                    onChange={(e) => setFormData({ ...formData, health: e.target.value as any || undefined })}
-                                                >
-                                                    <option value="">None</option>
-                                                    <option value="on-track">On Track (Green)</option>
-                                                    <option value="at-risk">At Risk (Amber)</option>
-                                                    <option value="delayed">Delayed (Red)</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        {/* Deliverables Editor */}
-                                        <div className="pt-4 border-t border-slate-100 space-y-4">
-                                            <div className="flex justify-between items-center">
-                                                <label className="text-xs font-semibold uppercase text-slate-500">Deliverables</label>
-                                                <Button size="sm" variant="ghost" onClick={addDeliverable} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-8">
-                                                    <Plus className="h-3 w-3 mr-1" /> Add Item
-                                                </Button>
-                                            </div>
-                                            <div className="space-y-2">
-                                                {formData.deliverables?.map((del, i) => (
-                                                    <div key={i} className="flex gap-2 items-center">
-                                                        <select
-                                                            className="w-32 p-2 rounded-lg border border-slate-200 text-xs bg-slate-50"
-                                                            value={del.status}
-                                                            onChange={(e) => updateDeliverable(i, 'status', e.target.value)}
-                                                        >
-                                                            <option value="pending">Pending</option>
-                                                            <option value="in-progress">In Progress</option>
-                                                            <option value="done">Done</option>
-                                                        </select>
+                                            <div className="grid md:grid-cols-2 gap-6">
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <label className="text-sm font-semibold text-slate-700">Phase Label</label>
                                                         <input
-                                                            className="flex-1 p-2 rounded-lg border border-slate-200 text-sm"
-                                                            value={del.text}
-                                                            onChange={(e) => updateDeliverable(i, 'text', e.target.value)}
+                                                            value={formData.phase || ''}
+                                                            onChange={(e) => setFormData({ ...formData, phase: e.target.value })}
+                                                            className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            placeholder="e.g. Phase 1"
                                                         />
-                                                        <button onClick={() => removeDeliverable(i)} className="p-2 text-slate-400 hover:text-red-500">
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </button>
+                                                        {errors.phase && <p className="text-red-500 text-xs mt-1">{errors.phase}</p>}
                                                     </div>
-                                                ))}
+                                                    <div>
+                                                        <label className="text-sm font-semibold text-slate-700">Timeline / Date</label>
+                                                        <input
+                                                            value={formData.date || ''}
+                                                            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                                            className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            placeholder="e.g. Q4 2024"
+                                                        />
+                                                        {errors.date && <p className="text-red-500 text-xs mt-1">{errors.date}</p>}
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-sm font-semibold text-slate-700">Status</label>
+                                                        <select
+                                                            value={formData.status || 'upcoming'}
+                                                            onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                                                            className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            <option value="upcoming">Upcoming</option>
+                                                            <option value="current">Current (In Progress)</option>
+                                                            <option value="completed">Completed</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <label className="text-sm font-semibold text-slate-700">Title</label>
+                                                        <input
+                                                            value={formData.title || ''}
+                                                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                                            className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            placeholder="e.g. Foundation & Setup"
+                                                        />
+                                                        {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-sm font-semibold text-slate-700">Description</label>
+                                                        <textarea
+                                                            value={formData.description || ''}
+                                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                                            className="flex min-h-[120px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            placeholder="Brief description of goals..."
+                                                        />
+                                                        {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-4 border-t border-slate-100">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <label className="text-sm font-semibold text-slate-700">Deliverables</label>
+                                                    <Button size="sm" variant="outline" onClick={addDeliverable}>
+                                                        <Plus className="h-3 w-3 mr-2" /> Add Item
+                                                    </Button>
+                                                </div>
+                                                <div className="space-y-3 pl-2">
+                                                    {formData.deliverables?.map((item, idx) => (
+                                                        <div key={idx} className="flex items-center gap-3 animate-in slide-in-from-left-2">
+                                                            <div className="bg-slate-200 h-1.5 w-1.5 rounded-full" />
+                                                            <input
+                                                                value={item.text}
+                                                                onChange={(e) => updateDeliverable(idx, 'text', e.target.value)}
+                                                                className="flex-1 h-8 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                                placeholder="Deliverable description..."
+                                                            />
+                                                            <select
+                                                                value={item.status}
+                                                                onChange={(e) => updateDeliverable(idx, 'status', e.target.value)}
+                                                                className="h-8 rounded-md border border-slate-200 bg-slate-50 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                            >
+                                                                <option value="pending">Pending</option>
+                                                                <option value="in-progress">In Progress</option>
+                                                                <option value="done">Done</option>
+                                                            </select>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => removeDeliverable(idx)}
+                                                                className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
+                                                            >
+                                                                <Trash2 className="h-3 w-3" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                    {(!formData.deliverables || formData.deliverables.length === 0) && (
+                                                        <p className="text-slate-400 text-sm italic">No deliverables added yet.</p>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-
-                                    </CardContent>
-                                ) : (
-                                    /* VIEW MODE */
-                                    <CardContent className="p-6">
-                                        <div className="flex items-start justify-between">
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-3">
-                                                    <h3 className="font-bold text-lg text-slate-900">{phase.title}</h3>
-                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${phase.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
-                                                        phase.status === 'current' ? 'bg-blue-50 text-blue-600 border-blue-200' :
-                                                            'bg-slate-50 text-slate-500 border-slate-200'
+                                    ) : (
+                                        /* VIEW MODE */
+                                        <div className="flex flex-col md:flex-row gap-8">
+                                            {/* Left Column: Info */}
+                                            <div className="md:w-1/3 space-y-4 border-r border-slate-100 pr-6">
+                                                <div>
+                                                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${phase.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                                                        phase.status === 'current' ? 'bg-blue-100 text-blue-700' :
+                                                            'bg-slate-100 text-slate-600'
                                                         }`}>
                                                         {phase.status}
                                                     </span>
                                                 </div>
-                                                <p className="text-xs font-bold uppercase text-slate-500">{phase.phase} • {phase.date}</p>
-                                                <p className="text-sm text-slate-600 max-w-xl">{phase.description}</p>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <Button variant="outline" size="sm" onClick={() => handleEdit(phase)}>Edit</Button>
-                                                <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-500 hover:bg-red-50" onClick={() => handleDelete(phase.id)}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                        {/* Preview Deliverables Count */}
-                                        <div className="mt-4 pt-4 border-t border-slate-100 flex gap-4 text-xs text-slate-500">
-                                            <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> {phase.deliverables.filter(d => d.status === 'done').length} Done</span>
-                                            <span className="flex items-center gap-1"><Circle className="h-3 w-3" /> {phase.deliverables.filter(d => d.status !== 'done').length} Pending</span>
-                                        </div>
-                                    </CardContent>
-                                )}
-                            </Card>
-                        ))}
-                    </div>
+                                                <div>
+                                                    <h3 className="text-xl font-bold text-slate-900">{phase.phase}</h3>
+                                                    <p className="text-sm font-bold text-blue-600 mt-1">{phase.date}</p>
+                                                </div>
+                                                <div className="pt-2">
+                                                    <h4 className="font-semibold text-slate-800">{phase.title}</h4>
+                                                    <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                                                        {phase.description}
+                                                    </p>
+                                                </div>
 
+                                                <div className="flex gap-2 pt-4">
+                                                    <Button variant="outline" size="sm" onClick={() => handleEdit(phase)} className="w-full">
+                                                        Edit Phase
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="text-slate-400 hover:text-red-500 hover:border-red-200"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onDeleteClick(phase.id);
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                    <DeleteConfirmationModal
+                                                        isOpen={deleteModalOpen && phaseToDelete === phase.id}
+                                                        onClose={() => setDeleteModalOpen(false)}
+                                                        onConfirm={handleConfirmDelete}
+                                                        title="Delete Phase"
+                                                        description={`Are you sure you want to delete '${phase.phase}: ${phase.title}'?`}
+                                                        isDeleting={isDeleting}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Right Column: Deliverables */}
+
+                                            <div className="md:w-2/3">
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Key Deliverables</h4>
+                                                <div className="grid sm:grid-cols-2 gap-3">
+                                                    {phase.deliverables && phase.deliverables.map((item, idx) => (
+                                                        <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                                                            {item.status === 'done' ? (
+                                                                <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                                                            ) : item.status === 'in-progress' ? (
+                                                                <Loader2 className="h-4 w-4 text-blue-500 mt-0.5 animate-spin flex-shrink-0" />
+                                                            ) : (
+                                                                <Circle className="h-4 w-4 text-slate-300 mt-0.5 flex-shrink-0" />
+                                                            )}
+                                                            <span className={`text-sm ${item.status === 'done' ? 'text-slate-500 line-through' : 'text-slate-700'}`}>
+                                                                {item.text}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                    {(!phase.deliverables || phase.deliverables.length === 0) && (
+                                                        <p className="text-sm text-slate-400 italic">No deliverables recorded.</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )
+                    })}
                 </div>
-            </main>
+
+                <DeleteConfirmationModal
+                    isOpen={deleteModalOpen && !phaseToDelete} // General modal if not specific (though logic handles specific above)
+                    onClose={() => setDeleteModalOpen(false)}
+                    onConfirm={handleConfirmDelete}
+                    title="Delete Phase"
+                    description="Are you sure you want to delete this phase?"
+                    isDeleting={isDeleting}
+                />
+            </div>
         </div>
     );
 }

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { useProject } from "@/context/ProjectContext";
 import { useRole } from "@/context/RoleContext";
-import { RoadmapPhase } from "@/lib/mockData";
+import { RoadmapPhase } from "@/types";
 
 export default function TimelineView() {
     const { roadmap, toggleDeliverable } = useProject();
@@ -31,8 +31,7 @@ export default function TimelineView() {
 
                 return (
                     <div key={phase.id} className={cn(
-                        "relative md:flex items-center justify-between group",
-                        index % 2 === 0 ? "md:flex-row-reverse" : "md:flex-row"
+                        "relative md:flex items-center justify-between group md:flex-row"
                     )}>
 
                         {/* Timeline Dot (Center) */}
@@ -49,11 +48,16 @@ export default function TimelineView() {
                         </div>
 
                         {/* Spacer for the other side */}
-                        <div className="hidden md:block w-[45%]" />
+                        <div className={cn(
+                            "hidden md:block w-[45%]",
+                            index % 2 === 0 ? "md:order-2" : "md:order-1"
+                        )} />
 
                         {/* Content Card */}
                         <div className={cn(
                             "w-full md:w-[45%] rounded-2xl border transition-all duration-300 relative overflow-hidden",
+                            index % 2 === 0 ? "md:order-1" : "md:order-2",
+                            "text-left",
                             // 1. THE PAST (Completed)
                             isCompleted && "bg-slate-50/80 border-slate-200 opacity-75 hover:opacity-100 hover:shadow-md",
                             // 2. THE PRESENT (In Progress - Hero Card)

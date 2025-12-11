@@ -66,15 +66,17 @@ function NavItem({ href, label, icon: Icon, isActive, disabled, comingSoon }: Na
 export default function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
-    const { role, user, logout, isManager, isLeadership, isDeveloper } = useRole();
+    const { role, user, isManager, logout } = useRole();
 
-    const handleLogout = () => {
-        logout();
-        router.push('/');
-    };
+    // Hide sidebar on public pages
+    if (pathname === '/' || pathname?.startsWith('/sign-in')) {
+        return null;
+    }
+
+
 
     return (
-        <aside className="fixed left-0 top-0 h-screen w-72 bg-slate-900 text-slate-200 flex flex-col border-r border-slate-800 z-50">
+        <aside className="fixed left-0 top-0 h-screen w-72 bg-slate-900 text-slate-200 flex flex-col border-r border-slate-800 z-[60]">
             {/* Header / Brand */}
             <div className="p-6">
                 <div className="mb-6 px-1 flex items-center gap-3">
@@ -112,7 +114,12 @@ export default function Sidebar() {
                         isActive={pathname === '/status'}
                     />
                     {/* Disabled Features */}
-                    <NavItem href="#" label="Overview" icon={LayoutDashboard} disabled comingSoon />
+                    <NavItem
+                        href="/overview"
+                        label="Overview"
+                        icon={LayoutDashboard}
+                        isActive={pathname === '/overview'}
+                    />
                     <NavItem href="#" label="Performance" icon={BarChart3} disabled comingSoon />
                 </div>
 
@@ -133,6 +140,18 @@ export default function Sidebar() {
                             label="Manage Status"
                             icon={Settings}
                             isActive={pathname === '/manager/status'}
+                        />
+                        <NavItem
+                            href="/manager/users"
+                            label="Manage Users"
+                            icon={User}
+                            isActive={pathname === '/manager/users'}
+                        />
+                        <NavItem
+                            href="/manager/activity"
+                            label="Activity Log"
+                            icon={Activity}
+                            isActive={pathname === '/manager/activity'}
                         />
                     </div>
                 )}
@@ -156,7 +175,7 @@ export default function Sidebar() {
                         variant="ghost"
                         size="sm"
                         className="h-8 w-8 p-0 text-slate-400 hover:text-white hover:bg-slate-700"
-                        onClick={handleLogout}
+                        onClick={() => logout()}
                     >
                         <LogOut className="h-4 w-4" />
                     </Button>

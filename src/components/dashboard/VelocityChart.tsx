@@ -1,7 +1,7 @@
 "use client"
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ChartDataPoint } from '@/lib/mockData';
+import { ChartDataPoint } from '@/types';
 import { useEffect, useState } from 'react';
 
 interface VelocityChartProps {

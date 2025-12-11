@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthProvider } from "@/context/AuthContext";
+import { ReportProvider } from "@/context/ReportContext";
+import { ActivityProvider } from "@/context/ActivityContext";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +22,9 @@ export const metadata: Metadata = {
 };
 
 import { AppProviders } from "@/components/providers/AppProviders";
+import Sidebar from "@/components/layout/Sidebar";
+
+import { Shell } from "@/components/layout/Shell";
 
 export default function RootLayout({
   children,
@@ -28,11 +34,20 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <AppProviders>
-          {children}
-        </AppProviders>
+        <AuthProvider>
+          <AppProviders>
+            <ReportProvider>
+              <ActivityProvider>
+                <Shell>
+                  {children}
+                </Shell>
+              </ActivityProvider>
+            </ReportProvider>
+          </AppProviders>
+        </AuthProvider>
       </body>
     </html>
   );

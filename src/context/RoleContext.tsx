@@ -1,48 +1,48 @@
 "use client";
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
+import { useAuth } from './AuthContext';
 
 export type UserRole = 'manager' | 'developer' | 'leadership';
 
 export interface User {
     username: string;
-    email?: string; // Optional for now
+    email?: string;
     name: string;
 }
 
 interface RoleContextType {
     role: UserRole;
     user: User | null;
-    login: (username: string, role: UserRole) => void;
+    login: (username: string, role: UserRole) => void; // Deprecated
     logout: () => void;
-
-    // New Helpers
     isManager: boolean;
     isDeveloper: boolean;
     isLeadership: boolean;
-    // Deprecated Helpers (Backwards Compatibility)
-    isAdmin: boolean;
-    isStakeholder: boolean;
+    isAdmin: boolean;       // Deprecated
+    isStakeholder: boolean; // Deprecated
+    isLoading: boolean;
+    setRole: () => void; // Deprecated
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: React.ReactNode }) {
-    const [role, setRole] = useState<UserRole>('leadership');
-    const [user, setUser] = useState<User | null>(null);
+    const { user: authUser, loading, logout: authLogout } = useAuth();
 
-    const login = (username: string, newRole: UserRole) => {
-        setUser({
-            username,
-            name: username.charAt(0).toUpperCase() + username.slice(1), // Simple capitalization for display name
-        });
-        setRole(newRole);
-    };
+    const role: UserRole = useMemo(() => {
+        if (!authUser) return 'leadership'; // Default safely
+        const r = authUser.role?.toLowerCase();
+        if (r === 'manager') return 'manager';
+        if (r === 'developer') return 'developer';
+        return 'leadership';
+    }, [authUser]);
 
-    const logout = () => {
-        setUser(null);
-        setRole('leadership'); // Reset to default safe role
-    };
+    const user: User | null = authUser ? {
+        username: authUser.email.split('@')[0],
+        name: authUser.name || 'User',
+        email: authUser.email
+    } : null;
 
     const isManager = role === 'manager';
     const isDeveloper = role === 'developer';
@@ -51,15 +51,15 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     const value = {
         role,
         user,
-        login,
-        logout,
-        setRole, // Keeping for internal/legacy use if needed, but login() is preferred
+        login: () => console.warn("Login via RoleContext is deprecated"),
+        logout: authLogout,
+        setRole: () => { }, // No-op
         isManager,
         isDeveloper,
         isLeadership,
-        // Map old roles to new ones for safety
         isAdmin: isManager,
         isStakeholder: isLeadership,
+        isLoading: loading
     };
 
     return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;
