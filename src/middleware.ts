@@ -1,28 +1,51 @@
-
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { verifyToken } from './lib/auth/jwt';
 
 export async function middleware(request: NextRequest) {
     const token = request.cookies.get('auth-token')?.value;
+    const { pathname } = request.nextUrl;
 
-    const isProtectedRoute = request.nextUrl.pathname.startsWith('/manager') ||
-        request.nextUrl.pathname.startsWith('/dashboard') ||
-        request.nextUrl.pathname.startsWith('/finance');
+    const isProtectedRoute = pathname.startsWith('/manager') ||
+        pathname.startsWith('/dashboard') ||
+        pathname.startsWith('/finance') ||
+        pathname.startsWith('/roadmap') ||
+        pathname.startsWith('/timesheets') ||
+        pathname.startsWith('/settings');
 
-    // Explicitly allow public routes (shared links) even if they start with a protected prefix (though they don't here)
-    const isPublicRoute = request.nextUrl.pathname.startsWith('/p/');
+    const isPublicRoute = pathname.startsWith('/p/') || pathname === '/';
 
-    if (isProtectedRoute && !isPublicRoute) {
+    if (isProtectedRoute) {
         if (!token) {
-            console.log(`[Middleware] Redirecting to / (No Token) from ${request.nextUrl.pathname}`);
+            console.log(`[Middleware] 🔒 Redirecting to / (No Token) from ${pathname}`);
             return NextResponse.redirect(new URL('/', request.url));
         }
+
+        // Verify token validity
+        const payload = await verifyToken(token);
+        if (!payload) {
+            console.log(`[Middleware] ❌ Invalid Token for ${pathname}. Redirecting to /`);
+            const response = NextResponse.redirect(new URL('/', request.url));
+            // Clear invalid cookie to prevent loops
+            response.cookies.delete('auth-token');
+            return response;
+        }
+
         return NextResponse.next();
     }
 
-    if (token && request.nextUrl.pathname === '/') {
-        // If already logged in and visiting home/login page, redirect to Dashboard
-        return NextResponse.redirect(new URL('/roadmap', request.url));
+    if (token && pathname === '/') {
+        // If already logged in and visiting home/login page, verify token
+        const payload = await verifyToken(token);
+        if (payload) {
+            console.log(`[Middleware] 🚀 Auth found, redirecting from / to /roadmap`);
+            return NextResponse.redirect(new URL('/roadmap', request.url));
+        } else {
+            // Token found but invalid on login page, clear it
+            const response = NextResponse.next();
+            response.cookies.delete('auth-token');
+            return response;
+        }
     }
 
     return NextResponse.next();

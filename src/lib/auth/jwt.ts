@@ -37,10 +37,18 @@ export async function createToken(user: JWTPayload): Promise<string> {
  */
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
     try {
+        if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+            console.error('CRITICAL: JWT_SECRET is not set in production! This will cause session issues after deployment.');
+        }
+
         const { payload } = await jwtVerify(token, secret);
         return payload as unknown as JWTPayload;
-    } catch (error) {
-        console.error('JWT verification failed:', error);
+    } catch (error: any) {
+        if (error.code === 'ERR_JWT_EXPIRED') {
+            console.log('JWT expired');
+        } else {
+            console.error('JWT verification failed:', error.message || error);
+        }
         return null;
     }
 }
