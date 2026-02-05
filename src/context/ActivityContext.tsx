@@ -1,14 +1,15 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { getActivities, createActivity as createActivityAction } from "@/lib/activityActions";
 
 export interface ActivityLog {
     id: string;
     userId: string;
     userName: string;
-    userRole: "manager" | "developer" | "leadership";
+    userRole: "manager" | "developer" | "leadership" | "finance";
     action: string;
-    targetType?: "feature" | "report" | "roadmap" | "user" | "task";
+    targetType?: "feature" | "report" | "roadmap" | "user" | "task" | "timesheet";
     targetId?: string;
     targetName?: string;
     details?: Record<string, unknown>;
@@ -17,92 +18,88 @@ export interface ActivityLog {
 
 interface ActivityContextType {
     activities: ActivityLog[];
-    addActivity: (activity: Omit<ActivityLog, "id" | "timestamp">) => void;
+    loading: boolean;
+    addActivity: (activity: Omit<ActivityLog, "id" | "timestamp" | "userId" | "userName" | "userRole">) => Promise<void>;
     getActivitiesByUser: (userId: string) => ActivityLog[];
+    getRecentActivitiesByUser: (userId: string, limit?: number) => ActivityLog[];
+    getActivitiesInDateRange: (startDate: Date, endDate: Date) => ActivityLog[];
+    refreshActivities: () => Promise<void>;
 }
 
 const ActivityContext = createContext<ActivityContextType | undefined>(undefined);
 
-// Mock data for testing
-const mockActivities: ActivityLog[] = [
-    {
-        id: "act1",
-        userId: "mgr1",
-        userName: "Alice Manager",
-        userRole: "manager",
-        action: "LOGIN",
-        timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
-    },
-    {
-        id: "act2",
-        userId: "dev1",
-        userName: "Bob Developer",
-        userRole: "developer",
-        action: "ROADMAP_DELIVERABLE_TOGGLE",
-        targetType: "roadmap",
-        targetName: "Sprint 3 - API Integration",
-        timestamp: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-        id: "act3",
-        userId: "mgr1",
-        userName: "Alice Manager",
-        userRole: "manager",
-        action: "FEATURE_STATUS_UPDATE",
-        targetType: "feature",
-        targetName: "Payment Processor",
-        details: { oldStatus: "operational", newStatus: "critical" },
-        timestamp: new Date(Date.now() - 1800000).toISOString(),
-    },
-    {
-        id: "act4",
-        userId: "lead1",
-        userName: "Carol Leadership",
-        userRole: "leadership",
-        action: "LOGIN",
-        timestamp: new Date(Date.now() - 900000).toISOString(),
-    },
-    {
-        id: "act5",
-        userId: "mgr1",
-        userName: "Alice Manager",
-        userRole: "manager",
-        action: "REPORT_ACKNOWLEDGED",
-        targetType: "report",
-        targetName: "Payment failing with 500 error",
-        timestamp: new Date(Date.now() - 600000).toISOString(),
-    },
-    {
-        id: "act6",
-        userId: "dev1",
-        userName: "Bob Developer",
-        userRole: "developer",
-        action: "TASK_STATUS_UPDATE",
-        targetType: "task",
-        targetName: "Implement user auth",
-        details: { oldStatus: "In Progress", newStatus: "In Review" },
-        timestamp: new Date(Date.now() - 300000).toISOString(),
-    },
-];
-
 export function ActivityProvider({ children }: { children: React.ReactNode }) {
-    const [activities, setActivities] = useState<ActivityLog[]>(mockActivities);
+    const [activities, setActivities] = useState<ActivityLog[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const addActivity = (activity: Omit<ActivityLog, "id" | "timestamp">) => {
-        const newActivity: ActivityLog = {
-            ...activity,
-            id: crypto.randomUUID(),
-            timestamp: new Date().toISOString(),
-        };
-        setActivities((prev) => [newActivity, ...prev]);
+    // Load activities from database on mount
+    useEffect(() => {
+        loadActivities();
+    }, []);
+
+    const loadActivities = async () => {
+        try {
+            setLoading(true);
+            const data = await getActivities({ limit: 100 });
+            setActivities(data);
+        } catch (error) {
+            console.error("Error loading activities:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const addActivity = async (activity: Omit<ActivityLog, "id" | "timestamp" | "userId" | "userName" | "userRole">) => {
+        try {
+            await createActivityAction({
+                action: activity.action,
+                targetType: activity.targetType,
+                targetId: activity.targetId,
+                targetName: activity.targetName,
+                details: activity.details,
+            });
+            // Refresh activities after adding
+            await loadActivities();
+        } catch (error) {
+            console.error("Error adding activity:", error);
+        }
     };
 
     const getActivitiesByUser = (userId: string): ActivityLog[] => {
         return activities.filter((a) => a.userId === userId);
     };
 
+    const getRecentActivitiesByUser = (userId: string, limit: number = 20): ActivityLog[] => {
+        // Only show activities from last 2 months
+        const twoMonthsAgo = new Date();
+        twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+
+        return activities
+            .filter((a) => a.userId === userId && new Date(a.timestamp) >= twoMonthsAgo)
+            .slice(0, limit);
+    };
+
+    const getActivitiesInDateRange = (startDate: Date, endDate: Date): ActivityLog[] => {
+        return activities.filter((a) => {
+            const activityDate = new Date(a.timestamp);
+            return activityDate >= startDate && activityDate <= endDate;
+        });
+    };
+
+    const refreshActivities = async () => {
+        await loadActivities();
+    };
+
     return (
-        <ActivityContext.Provider value={{ activities, addActivity, getActivitiesByUser }}>
+        <ActivityContext.Provider value={{
+            activities,
+            loading,
+            addActivity,
+            getActivitiesByUser,
+            getRecentActivitiesByUser,
+            getActivitiesInDateRange,
+            refreshActivities
+        }}>
             {children}
         </ActivityContext.Provider>
     );

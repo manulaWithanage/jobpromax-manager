@@ -3,7 +3,7 @@
  * This will help diagnose why the delete button isn't working
  */
 
-const BASE_URL = 'http://localhost:8000';
+const BASE_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 
 async function testDeleteFunctionality() {
     console.log('🧪 Testing DELETE Functionality...\n');

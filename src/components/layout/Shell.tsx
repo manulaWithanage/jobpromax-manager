@@ -7,11 +7,12 @@ import Sidebar from "@/components/layout/Sidebar";
 export function Shell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const isPublic = pathname === '/' || pathname?.startsWith('/sign-in');
+    const isSharedView = pathname?.startsWith('/p/');
 
     return (
         <>
             <Sidebar />
-            <div className={isPublic ? "" : "ml-72"}>
+            <div className={(isPublic) ? "" : "ml-72"}>
                 {children}
             </div>
         </>

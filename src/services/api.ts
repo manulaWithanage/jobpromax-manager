@@ -153,18 +153,18 @@ export const api = {
 
     // USER MANAGEMENT
     getUsers: async (): Promise<User[]> => {
-        return fetchAPI('users');
+        return fetchAPI('users/');
     },
 
     createUser: async (user: Omit<User, 'id'>): Promise<User> => {
-        return fetchAPI('users', {
+        return fetchAPI('users/', {
             method: 'POST',
             body: JSON.stringify(user)
         });
     },
 
     deleteUser: async (id: string): Promise<void> => {
-        return fetchAPI(`users/${id}`, { method: 'DELETE' });
+        return fetchAPI(`users/${id}/`, { method: 'DELETE' });
     },
 
     // ANALYTICS / DASHBOARD

@@ -189,10 +189,12 @@ export default function ManagerRoadmapPage() {
     };
 
     const updateDeliverable = (index: number, field: keyof Deliverable, value: any) => {
-        if (!formData.deliverables) return;
-        const newDeliverables = [...formData.deliverables];
-        newDeliverables[index] = { ...newDeliverables[index], [field]: value };
-        setFormData({ ...formData, deliverables: newDeliverables });
+        setFormData(prev => {
+            if (!prev.deliverables) return prev;
+            const newDeliverables = [...prev.deliverables];
+            newDeliverables[index] = { ...newDeliverables[index], [field]: value };
+            return { ...prev, deliverables: newDeliverables };
+        });
     };
 
     // Hooks must run before this return
@@ -269,7 +271,7 @@ export default function ManagerRoadmapPage() {
                                                         <label className="text-sm font-semibold text-slate-700">Phase Label</label>
                                                         <input
                                                             value={formData.phase || ''}
-                                                            onChange={(e) => setFormData({ ...formData, phase: e.target.value })}
+                                                            onChange={(e) => setFormData(prev => ({ ...prev, phase: e.target.value }))}
                                                             className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                             placeholder="e.g. Phase 1"
                                                         />
@@ -279,7 +281,7 @@ export default function ManagerRoadmapPage() {
                                                         <label className="text-sm font-semibold text-slate-700">Timeline / Date</label>
                                                         <input
                                                             value={formData.date || ''}
-                                                            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                                            onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
                                                             className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                             placeholder="e.g. Q4 2024"
                                                         />
@@ -289,7 +291,7 @@ export default function ManagerRoadmapPage() {
                                                         <label className="text-sm font-semibold text-slate-700">Status</label>
                                                         <select
                                                             value={formData.status || 'upcoming'}
-                                                            onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                                                            onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as any }))}
                                                             className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                         >
                                                             <option value="upcoming">Upcoming</option>
@@ -303,7 +305,7 @@ export default function ManagerRoadmapPage() {
                                                         <label className="text-sm font-semibold text-slate-700">Title</label>
                                                         <input
                                                             value={formData.title || ''}
-                                                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                                            onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                                                             className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                             placeholder="e.g. Foundation & Setup"
                                                         />
@@ -313,7 +315,7 @@ export default function ManagerRoadmapPage() {
                                                         <label className="text-sm font-semibold text-slate-700">Description</label>
                                                         <textarea
                                                             value={formData.description || ''}
-                                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                                            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                                                             className="flex min-h-[120px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                             placeholder="Brief description of goals..."
                                                         />
@@ -331,7 +333,7 @@ export default function ManagerRoadmapPage() {
                                                 </div>
                                                 <div className="space-y-3 pl-2">
                                                     {formData.deliverables?.map((item, idx) => (
-                                                        <div key={idx} className="flex items-center gap-3 animate-in slide-in-from-left-2">
+                                                        <div key={`edit-del-${idx}`} className="flex items-center gap-3">
                                                             <div className="bg-slate-200 h-1.5 w-1.5 rounded-full" />
                                                             <input
                                                                 value={item.text}

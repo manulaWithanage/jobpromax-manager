@@ -3,12 +3,14 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getCurrentUserAction, login as loginAction, logout as logoutAction } from '@/lib/actions/auth';
 
 interface User {
     id: string;
     email: string;
     name: string;
     role: string;
+    department?: string;
 }
 
 interface AuthContextType {
@@ -17,8 +19,6 @@ interface AuthContextType {
     login: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
 }
-
-import { authService } from '@/services/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -33,20 +33,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function checkUser() {
         try {
-            const res = await authService.getCurrentUser();
-            // Assuming the proxy returns { user: ... } or null
-            // The service returns the response body directly
-            // If the route returns { user }, then res.user is sufficient
-            // But fetchAPI returns `any` (res.json()).
-            // Let's assume authService types are correct or inferred.
-
-            // Wait, fetchAPI returns Promise<any> in api.ts?
-            // "return await res.json();" -> inferred any.
-            // authService methods return Promise<LoginResponse> etc.
-
-            // If authService.getCurrentUser() returns { user: User | null } (as defined in auth.ts)
-            if (res && res.user) {
-                setUser(res.user);
+            const currentUser = await getCurrentUserAction();
+            if (currentUser) {
+                setUser({
+                    id: currentUser.id,
+                    email: currentUser.email,
+                    name: currentUser.name,
+                    role: currentUser.role,
+                    department: currentUser.department,
+                });
             } else {
                 setUser(null);
             }
@@ -59,20 +54,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     async function login(email: string, password: string) {
-        // authService.login throws if fetch fails (fetchAPI throws on !res.ok)
-        const data = await authService.login(email, password);
+        const result = await loginAction(email, password);
 
-        // If success
-        if (data.user) {
-            setUser(data.user);
-            router.push('/manager/users'); // Redirect after login
+        if (result.success && result.user) {
+            setUser({
+                id: result.user.id,
+                email: result.user.email,
+                name: result.user.name,
+                role: result.user.role,
+                department: result.user.department,
+            });
+
+            // Redirect based on role
+            if (result.user.role === 'manager') {
+                router.push('/manager/users');
+            } else if (result.user.role === 'developer') {
+                router.push('/timesheets');
+            } else {
+                router.push('/roadmap');
+            }
         } else {
-            throw new Error(data.message || 'Login failed');
+            throw new Error(result.message || 'Login failed');
         }
     }
 
     async function logout() {
-        await authService.logout();
+        await logoutAction();
         setUser(null);
         router.push('/');
     }

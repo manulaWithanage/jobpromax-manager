@@ -2,7 +2,7 @@
  * Test script to verify backend receives and processes roadmap phase creation
  */
 
-const BASE_URL = 'http://localhost:8000';
+const BASE_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 
 async function testCreatePhase() {
     console.log('🧪 Testing Roadmap Phase Creation...\n');

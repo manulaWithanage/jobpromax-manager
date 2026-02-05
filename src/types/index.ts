@@ -6,12 +6,27 @@ export interface KPI {
     subtext?: string;
 }
 
+export interface BankDetails {
+    accountName: string;
+    bankName: string;
+    accountNumber: string;
+    branchName?: string;
+    branchCode?: string;
+    country?: string;
+    currency?: string;
+    notes?: string;
+}
+
 export interface User {
     id: string;
     name: string;
     email: string;
-    role: 'manager' | 'developer' | 'leadership';
+    role: 'manager' | 'developer' | 'leadership' | 'finance';
     isSuperAdmin?: boolean;
+    hourlyRate?: number;
+    department?: 'Frontend' | 'Backend' | 'Marketing' | 'Customer Success' | 'Management';
+    dailyHoursTarget?: number;
+    bankDetails?: BankDetails;
 }
 
 export interface Task {
@@ -79,4 +94,29 @@ export interface IncidentReport {
     status: 'pending' | 'acknowledged' | 'addressed';
     createdAt: string;
     adminNotes: IncidentNote[];
+}
+
+export interface TimeLog {
+    id: string;
+    userId: string;
+    userName: string;
+    userRole: User['role'];
+    date: string; // ISO Date (YYYY-MM-DD)
+    hours: number;
+    summary: string;
+    jiraTickets: string[];
+    workType: 'feature' | 'bug' | 'refactor' | 'testing' | 'documentation' | 'planning' | 'review' | 'meeting' | 'content' | 'campaign' | 'analytics' | 'other';
+    status: 'pending' | 'approved' | 'rejected';
+    approvedBy?: string;
+    managerComment?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface Timesheet {
+    userId: string;
+    userName: string;
+    weekStarting: string;
+    totalHours: number;
+    logs: TimeLog[];
 }

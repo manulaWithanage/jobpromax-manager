@@ -3,7 +3,7 @@
  * This will delete ALL roadmap phases one by one and verify each deletion
  */
 
-const BASE_URL = 'http://localhost:8000';
+const BASE_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 
 async function comprehensiveDeleteTest() {
     console.log('\n' + '='.repeat(80));

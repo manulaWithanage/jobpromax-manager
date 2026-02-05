@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 
-export type UserRole = 'manager' | 'developer' | 'leadership';
+export type UserRole = 'manager' | 'developer' | 'leadership' | 'finance';
 
 export interface User {
     username: string;
@@ -19,6 +19,7 @@ interface RoleContextType {
     isManager: boolean;
     isDeveloper: boolean;
     isLeadership: boolean;
+    isFinance: boolean;
     isAdmin: boolean;       // Deprecated
     isStakeholder: boolean; // Deprecated
     isLoading: boolean;
@@ -35,6 +36,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
         const r = authUser.role?.toLowerCase();
         if (r === 'manager') return 'manager';
         if (r === 'developer') return 'developer';
+        if (r === 'finance') return 'finance';
         return 'leadership';
     }, [authUser]);
 
@@ -47,6 +49,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     const isManager = role === 'manager';
     const isDeveloper = role === 'developer';
     const isLeadership = role === 'leadership';
+    const isFinance = role === 'finance';
 
     const value = {
         role,
@@ -57,6 +60,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
         isManager,
         isDeveloper,
         isLeadership,
+        isFinance,
         isAdmin: isManager,
         isStakeholder: isLeadership,
         isLoading: loading

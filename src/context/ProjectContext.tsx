@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Task, RoadmapPhase, FeatureStatus, User } from '@/types';
 import { api } from '@/services/api';
 import { useAuth } from './AuthContext';
+import { getUsers as getUsersAction, updateUserProfile, createUser as createUserAction, deleteUser as deleteUserAction } from '@/lib/actions/user';
 
 interface ProjectContextType {
     tasks: Task[];
@@ -22,7 +23,9 @@ interface ProjectContextType {
     // User Management
     users: User[];
     addUser: (user: Omit<User, 'id'>) => Promise<void>;
+    updateUser: (id: string, updates: Partial<User>) => Promise<void>;
     deleteUser: (id: string) => Promise<void>;
+    changeUserPassword: (userId: string, newPassword: string, currentPassword?: string, isForced?: boolean) => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -37,21 +40,65 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const { user, loading: authLoading } = useAuth();
 
     const refreshData = async () => {
-        if (authLoading || !user) return; // Don't fetch if not logged in
+        if (authLoading) {
+            console.log('[ProjectContext] refreshData skipped - auth is still loading');
+            return;
+        }
+        if (!user) {
+            console.log('[ProjectContext] refreshData skipped - no user authenticated');
+            return;
+        }
+
+        console.log('[ProjectContext] refreshData starting for user:', user.email, 'Role:', user.role);
         setIsLoading(true);
+
         try {
-            const [fetchedTasks, fetchedRoadmap, fetchedFeatures, fetchedUsers] = await Promise.all([
-                api.getTasks(),
-                api.getRoadmap(),
-                api.getFeatures(),
-                api.getUsers()
-            ]);
-            setTasks(fetchedTasks);
-            setRoadmap(fetchedRoadmap);
-            setFeatures(fetchedFeatures);
-            setUsers(fetchedUsers);
+            // Fetch users (Critical)
+            let fetchedUsers: User[] = [];
+            try {
+                console.log('[ProjectContext] Fetching users via Server Action...');
+                fetchedUsers = await getUsersAction();
+                console.log('[ProjectContext] Users response received:', fetchedUsers);
+            } catch (err) {
+                console.error('[ProjectContext] ❌ Error fetching users:', err);
+                if (err instanceof Error && err.message.includes('Authentication')) {
+                    console.error('[ProjectContext] 💡 SESSION ERROR: Your login session might be invalid. Please LOGOUT and LOGIN again.');
+                }
+            }
+
+            // Fetch tasks (Graceful failure)
+            let fetchedTasks: Task[] = [];
+            try {
+                fetchedTasks = await api.getTasks();
+            } catch (err) {
+                console.warn('[ProjectContext] Error fetching tasks (Likely missing API route):', err);
+            }
+
+            // Fetch roadmap (Graceful failure)
+            let fetchedRoadmap: RoadmapPhase[] = [];
+            try {
+                fetchedRoadmap = await api.getRoadmap();
+            } catch (err) {
+                console.warn('[ProjectContext] Error fetching roadmap (Likely missing API route):', err);
+            }
+
+            // Fetch features (Graceful failure)
+            let fetchedFeatures: FeatureStatus[] = [];
+            try {
+                fetchedFeatures = await api.getFeatures();
+            } catch (err) {
+                console.warn('[ProjectContext] Error fetching features (Likely missing API route):', err);
+            }
+
+            // Update state with whatever we got
+            setTasks(fetchedTasks || []);
+            setRoadmap(fetchedRoadmap || []);
+            setFeatures(fetchedFeatures || []);
+            setUsers(fetchedUsers || []);
+
+            console.log('[ProjectContext] State updated with latest data');
         } catch (error) {
-            console.error("Failed to fetch data", error);
+            console.error("[ProjectContext] Critical failure in refreshData", error);
         } finally {
             setIsLoading(false);
         }
@@ -123,14 +170,63 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         console.log('[ProjectContext] Data refreshed');
     };
 
-    const addUser = async (user: Omit<User, 'id'>) => {
-        await api.createUser(user);
-        await refreshData();
+    const addUser = async (userData: any) => {
+        try {
+            await createUserAction({
+                ...userData,
+                password: userData.password || 'password123'
+            });
+            await refreshData();
+        } catch (error) {
+            console.error('[ProjectContext] Failed to add user:', error);
+            throw error;
+        }
+    };
+
+    const updateUser = async (id: string, updates: Partial<User>) => {
+        try {
+            console.log('[ProjectContext] updateUser called with:', { id, updates });
+
+            const updatedUser = await updateUserProfile(id, {
+                name: updates.name,
+                email: updates.email,
+                role: updates.role,
+                hourlyRate: updates.hourlyRate,
+                department: updates.department as any,
+                dailyHoursTarget: updates.dailyHoursTarget,
+            });
+
+            console.log('[ProjectContext] Server action returned:', updatedUser);
+
+            // Update local state with the actual data from the server
+            setUsers(prev => {
+                const updated = prev.map(u => u.id === id ? updatedUser : u);
+                console.log('[ProjectContext] Local state updated with server response');
+                return updated;
+            });
+
+            // Force a full refresh to ensure all related data is in sync
+            console.log('[ProjectContext] Refreshing all data after user update...');
+            await refreshData();
+        } catch (error) {
+            console.error('[ProjectContext] Failed to update user:', error);
+            throw error;
+        }
     };
 
     const deleteUser = async (id: string) => {
-        await api.deleteUser(id);
-        await refreshData();
+        try {
+            await deleteUserAction(id);
+            await refreshData();
+        } catch (error) {
+            console.error('[ProjectContext] Failed to delete user:', error);
+            throw error;
+        }
+    };
+
+    const changeUserPassword = async (userId: string, newPassword: string, currentPassword?: string, isForced: boolean = false) => {
+        const { changeUserPassword: changePasswordAction } = await import('@/lib/actions/user');
+        await changePasswordAction(userId, newPassword, currentPassword, isForced);
     };
 
     return (
@@ -150,7 +246,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             deletePhase,
             users,
             addUser,
-            deleteUser
+            updateUser,
+            deleteUser,
+            changeUserPassword
         }}>
             {children}
         </ProjectContext.Provider>

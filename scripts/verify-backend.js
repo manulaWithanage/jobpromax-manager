@@ -2,7 +2,7 @@
  * Simplified backend verification test
  */
 
-const BASE_URL = 'http://localhost:8000';
+const BASE_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 
 async function test() {
     try {
