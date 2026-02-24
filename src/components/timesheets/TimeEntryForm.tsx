@@ -32,6 +32,7 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
         userName: currentUser?.name || "Guest",
         userRole: (currentUser?.role as "manager" | "developer" | "leadership") || "developer",
         userDepartment: (currentUser as any)?.department || "",
+        userDepartments: (currentUser as any)?.departments || ((currentUser as any)?.department ? [(currentUser as any).department] : []),
         date: new Date().toISOString().split('T')[0],
         hours: "",
         summary: "",
@@ -49,7 +50,8 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
                 userId: currentUser.id,
                 userName: currentUser.name,
                 userRole: (currentUser.role as any) || "developer",
-                userDepartment: (currentUser as any).department || ""
+                userDepartment: (currentUser as any).department || "",
+                userDepartments: (currentUser as any).departments || ((currentUser as any).department ? [(currentUser as any).department] : []),
             }));
         } else if (showDeveloperSelect && defaultDeveloperId) {
             const dev = developers.find(d => d.id === defaultDeveloperId);
@@ -59,7 +61,8 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
                     userId: dev.id,
                     userName: dev.name,
                     userRole: dev.role as any,
-                    userDepartment: (dev as any).department || ""
+                    userDepartment: (dev as any).department || "",
+                    userDepartments: (dev as any).departments || ((dev as any).department ? [(dev as any).department] : []),
                 }));
             }
         }
@@ -103,6 +106,20 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
     }, []);
 
     const [error, setError] = useState("");
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+    const clearFieldError = (field: string) => {
+        setFieldErrors(prev => {
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    };
+
+    const markTouched = (field: string) => {
+        setTouched(prev => ({ ...prev, [field]: true }));
+    };
 
     const addTicket = (ticket: string) => {
         const cleanTicket = ticket.trim().toUpperCase();
@@ -138,7 +155,8 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
                 userId: dev.id,
                 userName: dev.name,
                 userRole: dev.role as any,
-                userDepartment: (dev as any).department || ""
+                userDepartment: (dev as any).department || "",
+                userDepartments: (dev as any).departments || ((dev as any).department ? [(dev as any).department] : []),
             });
         }
     };
@@ -146,7 +164,7 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
     const WORK_CATEGORIES = [
         {
             label: "💻 Development",
-            departments: ["Frontend", "Backend", "Frontend Development", "Backend Development"],
+            departments: ["Frontend", "Backend", "Infrastructure", "Frontend Development", "Backend Development"],
             options: [
                 { value: "feature", label: "✨ Feature - New functionality" },
                 { value: "bug", label: "🐛 Bug Fix - Fixing issues" },
@@ -182,10 +200,12 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
         }
     ];
 
-    // Filter categories based on department
-    const filteredCategories = WORK_CATEGORIES.filter(cat =>
-        cat.departments.includes(formData.userDepartment) || cat.label === "📦 Other"
-    );
+    const filteredCategories = formData.userRole === 'manager'
+        ? WORK_CATEGORIES
+        : WORK_CATEGORIES.filter(cat => {
+            const userDepts: string[] = (formData as any).userDepartments || (formData.userDepartment ? [formData.userDepartment] : []);
+            return userDepts.some(dept => cat.departments.includes(dept)) || cat.label === "📦 Other";
+        });
 
     // Reset workType if it's no longer valid for the department
     useEffect(() => {
@@ -199,31 +219,79 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
         }
     }, [formData.userDepartment, filteredCategories]);
 
+    const validateForm = (): boolean => {
+        const errors: Record<string, string> = {};
+
+        // Date validation
+        if (!formData.date) {
+            errors.date = 'Date is required.';
+        } else {
+            const selected = new Date(formData.date);
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(0, 0, 0, 0);
+            if (selected >= tomorrow) {
+                errors.date = 'Cannot log time for a future date.';
+            }
+        }
+
+        // Hours validation
+        let hoursNum = 0;
+        if (!formData.hours.trim()) {
+            errors.hours = 'Hours are required.';
+        } else {
+            if (formData.hours.includes(':')) {
+                const [hrs, mins] = formData.hours.split(':').map(Number);
+                hoursNum = (hrs || 0) + (mins || 0) / 60;
+            } else {
+                hoursNum = parseFloat(formData.hours);
+            }
+            if (isNaN(hoursNum) || hoursNum <= 0) {
+                errors.hours = 'Enter a valid positive number of hours.';
+            } else if (hoursNum > 24) {
+                errors.hours = 'Cannot exceed 24 hours per day.';
+            }
+        }
+
+        // Summary validation
+        if (!formData.summary.trim()) {
+            errors.summary = 'Work summary is required.';
+        } else if (formData.summary.trim().length < 5) {
+            errors.summary = 'Summary must be at least 5 characters.';
+        }
+
+        // Developer validation (when in manual entry mode)
+        if (showDeveloperSelect && !formData.userId) {
+            errors.developer = 'Please select a developer.';
+        }
+
+        // Work type validation
+        if (!formData.workType) {
+            errors.workType = 'Please select a work type.';
+        }
+
+        setFieldErrors(errors);
+        // Mark all as touched on submit
+        const allTouched: Record<string, boolean> = {};
+        Object.keys(errors).forEach(k => allTouched[k] = true);
+        setTouched(prev => ({ ...prev, ...allTouched }));
+
+        return Object.keys(errors).length === 0;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
 
+        if (!validateForm()) return;
+
+        // Parse hours (already validated above)
         let hoursNum = 0;
         if (formData.hours.includes(':')) {
             const [hrs, mins] = formData.hours.split(':').map(Number);
             hoursNum = (hrs || 0) + (mins || 0) / 60;
         } else {
             hoursNum = parseFloat(formData.hours);
-        }
-
-        if (isNaN(hoursNum) || hoursNum <= 0) {
-            setError("Please enter a valid amount of hours.");
-            return;
-        }
-
-        if (!formData.summary.trim()) {
-            setError("Summary is required.");
-            return;
-        }
-
-        if (showDeveloperSelect && !formData.userId) {
-            setError("Please select a developer.");
-            return;
         }
 
         try {
@@ -308,25 +376,35 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="date">Date</Label>
+                            <Label htmlFor="date">Date <span className="text-red-500">*</span></Label>
                             <Input
                                 id="date"
                                 type="date"
                                 value={formData.date}
-                                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                onChange={(e) => { setFormData({ ...formData, date: e.target.value }); clearFieldError('date'); }}
+                                onBlur={() => markTouched('date')}
+                                className={touched.date && fieldErrors.date ? 'border-red-400 focus:ring-red-400' : ''}
                                 required
                             />
+                            {touched.date && fieldErrors.date && (
+                                <p className="text-xs text-red-500 font-medium mt-1">{fieldErrors.date}</p>
+                            )}
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="hours">Log Time (Decimal or HH:MM)</Label>
+                            <Label htmlFor="hours">Log Time (Decimal or HH:MM) <span className="text-red-500">*</span></Label>
                             <Input
                                 id="hours"
                                 type="text"
                                 placeholder="eg. 1.5 or 1:30"
                                 value={formData.hours}
-                                onChange={(e) => setFormData({ ...formData, hours: e.target.value })}
+                                onChange={(e) => { setFormData({ ...formData, hours: e.target.value }); clearFieldError('hours'); }}
+                                onBlur={() => markTouched('hours')}
+                                className={touched.hours && fieldErrors.hours ? 'border-red-400 focus:ring-red-400' : ''}
                                 required
                             />
+                            {touched.hours && fieldErrors.hours && (
+                                <p className="text-xs text-red-500 font-medium mt-1">{fieldErrors.hours}</p>
+                            )}
                             {formData.hours && (
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
                                     {(() => {
@@ -390,14 +468,15 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="workType">Work Type</Label>
+                        <Label htmlFor="workType">Work Type <span className="text-red-500">*</span></Label>
                         <div className="relative">
                             <Briefcase className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                             <select
                                 id="workType"
-                                className="flex h-10 w-full rounded-md border border-slate-200 bg-white pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className={cn("flex h-10 w-full rounded-md border bg-white pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500", touched.workType && fieldErrors.workType ? 'border-red-400' : 'border-slate-200')}
                                 value={formData.workType}
-                                onChange={(e) => setFormData({ ...formData, workType: e.target.value as any })}
+                                onChange={(e) => { setFormData({ ...formData, workType: e.target.value as any }); clearFieldError('workType'); }}
+                                onBlur={() => markTouched('workType')}
                                 required
                             >
                                 {filteredCategories.map(cat => (
@@ -412,19 +491,23 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="summary">Work Summary</Label>
+                        <Label htmlFor="summary">Work Summary <span className="text-red-500">*</span></Label>
                         <div className="relative">
                             <FileText className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                             <textarea
                                 id="summary"
                                 rows={3}
-                                className="flex min-h-[80px] w-full rounded-md border border-slate-200 bg-white px-10 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                className={cn("flex min-h-[80px] w-full rounded-md border bg-white px-10 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50", touched.summary && fieldErrors.summary ? 'border-red-400' : 'border-slate-200')}
                                 placeholder="Describe what was accomplished..."
                                 value={formData.summary}
-                                onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+                                onChange={(e) => { setFormData({ ...formData, summary: e.target.value }); clearFieldError('summary'); }}
+                                onBlur={() => markTouched('summary')}
                                 required
                             />
                         </div>
+                        {touched.summary && fieldErrors.summary && (
+                            <p className="text-xs text-red-500 font-medium">{fieldErrors.summary}</p>
+                        )}
                     </div>
 
                     <Button

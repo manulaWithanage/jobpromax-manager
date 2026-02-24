@@ -1,0 +1,26 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Drop Shadow for depth -->
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#E2E8F0"/>
+  
+  <!-- Main Background Rounded Square -->
+  <rect x="2" y="2" width="56" height="56" rx="14" fill="url(#paint0_linear)"/>
+  
+  <!-- Chart/Growth Columns -->
+  <path d="M16 42C16 40.8954 16.8954 40 18 40H22C23.1046 40 24 40.8954 24 42V48C24 49.1046 23.1046 50 22 50H18C16.8954 50 16 49.1046 16 48V42Z" fill="white" fill-opacity="0.8"/>
+  <path d="M28 32C28 30.8954 28.8954 30 30 30H34C35.1046 30 36 30.8954 36 32V48C36 49.1046 35.1046 50 34 50H30C28.8954 50 28 49.1046 28 48V32Z" fill="white" fill-opacity="0.9"/>
+  <path d="M40 20C40 18.8954 40.8954 18 42 18H46C47.1046 18 48 18.8954 48 20V48C48 49.1046 47.1046 50 46 50H42C40.8954 50 40 49.1046 40 48V20Z" fill="white"/>
+  
+  <!-- JPM (JobProMax) abstract line connecting the columns -->
+  <path d="M20 40 L32 30 L44 18" stroke="#FDE047" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Star/Chevron for 'Max'/'Pro' feeling -->
+  <path d="M44 12 L44 18 L50 18" stroke="#FDE047" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <defs>
+    <!-- Vibrant Indigo to Purple Gradient -->
+    <linearGradient id="paint0_linear" x1="2" y1="2" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4F46E5"/> <!-- Indigo 600 -->
+      <stop offset="1" stop-color="#9333EA"/> <!-- Purple 600 -->
+    </linearGradient>
+  </defs>
+</svg>

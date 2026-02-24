@@ -34,7 +34,7 @@ export default function TeamPerformancePage() {
     // Category mapping
     const CATEGORY_CONFIG = {
         Development: {
-            departments: ['Frontend', 'Backend', 'Frontend Development', 'Backend Development'],
+            departments: ['Frontend', 'Backend', 'Infrastructure', 'Frontend Development', 'Backend Development'],
             workTypes: ['feature', 'bug', 'refactor', 'testing', 'documentation'],
             colors: {
                 feature: '#3b82f6',
@@ -137,8 +137,8 @@ export default function TeamPerformancePage() {
             .map(dev => ({ ...dev, ticketCount: dev.tickets.size }));
 
         // 2. Category-Based Impact Analysis
-        const userDeptMap: Record<string, string> = {};
-        users.forEach(u => { userDeptMap[u.id] = (u as any).department || 'Other'; });
+        const userDeptsMap: Record<string, string[]> = {};
+        users.forEach(u => { userDeptsMap[u.id] = (u as any).departments || (u.department ? [u.department] : []); });
 
         // Calculate impact for each category
         const categoryImpacts: Record<string, { workTypes: Record<string, number>, total: number }> = {
@@ -155,13 +155,13 @@ export default function TeamPerformancePage() {
         });
 
         approvedLogs.forEach(log => {
-            const dept = userDeptMap[log.userId] || 'Other';
+            const userDepts = userDeptsMap[log.userId] || [];
             const workType = log.workType?.toLowerCase() || 'other';
 
             // Find which category this log belongs to
             let matchedCategory: string | null = null;
             for (const [cat, config] of Object.entries(CATEGORY_CONFIG)) {
-                if (config.departments.includes(dept)) {
+                if (userDepts.some(dept => config.departments.includes(dept))) {
                     matchedCategory = cat;
                     break;
                 }

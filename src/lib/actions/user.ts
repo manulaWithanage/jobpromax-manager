@@ -33,6 +33,7 @@ export async function getUsers(): Promise<UserType[]> {
         isSuperAdmin: user.isSuperAdmin,
         hourlyRate: user.hourlyRate,
         department: user.department,
+        departments: user.departments || (user.department ? [user.department] : []),
         dailyHoursTarget: user.dailyHoursTarget,
         bankDetails: user.bankDetails,
     }));
@@ -49,7 +50,8 @@ export async function updateUserProfile(
         email?: string;
         role?: 'manager' | 'developer' | 'leadership' | 'finance';
         hourlyRate?: number;
-        department?: 'Frontend' | 'Backend' | 'Marketing' | 'Customer Success' | 'Management';
+        department?: string;
+        departments?: string[];
         dailyHoursTarget?: number;
     }
 ): Promise<UserType> {
@@ -62,13 +64,25 @@ export async function updateUserProfile(
     // Build the update object, only including defined values
     const updateFields: any = {};
 
-    // Validate and add department if provided
-    if (updates.department) {
-        const validDepartments = ['Frontend', 'Backend', 'Marketing', 'Customer Success', 'Management'];
+    const validDepartments = ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management'];
+
+    // Handle departments array
+    if (updates.departments !== undefined) {
+        for (const dept of updates.departments) {
+            if (!validDepartments.includes(dept)) {
+                throw new Error(`Invalid department: ${dept}`);
+            }
+        }
+        updateFields.departments = updates.departments;
+        // Keep legacy field in sync (first department)
+        updateFields.department = updates.departments[0] || undefined;
+    } else if (updates.department) {
+        // Legacy single department support
         if (!validDepartments.includes(updates.department)) {
             throw new Error('Invalid department');
         }
         updateFields.department = updates.department;
+        updateFields.departments = [updates.department];
     }
 
     // Validate and add hourly rate if provided
@@ -148,6 +162,7 @@ export async function updateUserProfile(
         isSuperAdmin: user.isSuperAdmin,
         hourlyRate: user.hourlyRate,
         department: user.department,
+        departments: user.departments || (user.department ? [user.department] : []),
         dailyHoursTarget: user.dailyHoursTarget,
     };
 }
@@ -162,7 +177,8 @@ export async function createUser(data: {
     password: string;
     role: 'manager' | 'developer' | 'leadership';
     hourlyRate?: number;
-    department?: 'Frontend' | 'Backend' | 'Marketing' | 'Customer Success' | 'Management';
+    department?: string;
+    departments?: string[];
     dailyHoursTarget?: number;
 }
 ): Promise<UserType> {
@@ -183,13 +199,16 @@ export async function createUser(data: {
     // Hash password
     const passwordHash = await bcrypt.hash(data.password, 10);
 
+    const departments = data.departments || (data.department ? [data.department] : []);
+
     const newUser = await User.create({
         name: data.name,
         email: data.email.toLowerCase(),
         passwordHash,
         role: data.role,
         hourlyRate: data.hourlyRate || 0,
-        department: data.department,
+        department: departments[0] || undefined,
+        departments,
         dailyHoursTarget: data.dailyHoursTarget || 8,
     });
 
@@ -213,6 +232,7 @@ export async function createUser(data: {
         isSuperAdmin: newUser.isSuperAdmin,
         hourlyRate: newUser.hourlyRate,
         department: newUser.department,
+        departments: newUser.departments || [],
         dailyHoursTarget: newUser.dailyHoursTarget,
     };
 }

@@ -9,7 +9,8 @@ export interface IUser extends Document {
     role: 'manager' | 'developer' | 'leadership' | 'finance';
     isSuperAdmin?: boolean;
     hourlyRate?: number;
-    department?: 'Frontend' | 'Backend' | 'Marketing' | 'Customer Success' | 'Management';
+    department?: string;
+    departments?: ('Frontend' | 'Backend' | 'Infrastructure' | 'Marketing' | 'Customer Success' | 'Management')[];
     dailyHoursTarget?: number;
     bankDetails?: {
         accountName: string;
@@ -60,7 +61,12 @@ const UserSchema = new Schema<IUser>(
         },
         department: {
             type: String,
-            enum: ['Frontend', 'Backend', 'Marketing', 'Customer Success', 'Management'],
+            enum: ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management'],
+        },
+        departments: {
+            type: [String],
+            enum: ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management'],
+            default: [],
         },
         dailyHoursTarget: {
             type: Number,

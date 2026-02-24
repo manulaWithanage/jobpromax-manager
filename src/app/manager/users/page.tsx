@@ -199,13 +199,15 @@ function UserActivityModal({ user, isOpen, onClose }: { user: User; isOpen: bool
 function UserEditModal({ user, isOpen, onClose }: { user: User; isOpen: boolean; onClose: () => void }) {
     const { isManager } = useRole();
     const { updateUser, changeUserPassword } = useProject();
-    const { addActivity } = useActivity();
+
+    // Tab State
+    const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
 
     // Basic Info
     const [newName, setNewName] = useState(user.name);
     const [newEmail, setNewEmail] = useState(user.email);
     const [newRole, setNewRole] = useState(user.role);
-    const [newDepartment, setNewDepartment] = useState(user.department || "");
+    const [newDepartments, setNewDepartments] = useState<string[]>(user.departments || (user.department ? [user.department] : []));
     const [newHourlyRate, setNewHourlyRate] = useState(user.hourlyRate || 0);
     const [newDailyHoursTarget, setNewDailyHoursTarget] = useState(user.dailyHoursTarget || 8);
 
@@ -245,13 +247,17 @@ function UserEditModal({ user, isOpen, onClose }: { user: User; isOpen: boolean;
                 name: newName,
                 email: newEmail,
                 role: newRole,
-                department: newDepartment as User['department'],
+                departments: newDepartments,
+                department: newDepartments[0] || undefined,
                 hourlyRate: newHourlyRate,
                 dailyHoursTarget: newDailyHoursTarget
             });
 
             setInfoSuccess(true);
-            setTimeout(() => setInfoSuccess(false), 3000);
+            setTimeout(() => {
+                setInfoSuccess(false);
+                onClose();
+            }, 1000);
         } catch (error: unknown) {
             setInfoError(error instanceof Error ? error.message : "Failed to update user information");
         } finally {
@@ -293,7 +299,10 @@ function UserEditModal({ user, isOpen, onClose }: { user: User; isOpen: boolean;
             setNewPassword("");
             setConfirmPassword("");
             setForcePasswordChange(false);
-            setTimeout(() => setPasswordSuccess(false), 3000);
+            setTimeout(() => {
+                setPasswordSuccess(false);
+                onClose();
+            }, 1000);
         } catch (error: unknown) {
             setPasswordError(error instanceof Error ? error.message : "Failed to change password");
         } finally {
@@ -305,223 +314,270 @@ function UserEditModal({ user, isOpen, onClose }: { user: User; isOpen: boolean;
         newName !== user.name ||
         newEmail !== user.email ||
         newRole !== user.role ||
-        newDepartment !== (user.department || "") ||
+        JSON.stringify(newDepartments) !== JSON.stringify(user.departments || (user.department ? [user.department] : [])) ||
         newHourlyRate !== (user.hourlyRate || 0) ||
         newDailyHoursTarget !== (user.dailyHoursTarget || 8);
 
+    const DEPARTMENTS = [
+        { value: 'Frontend', label: 'Frontend' },
+        { value: 'Backend', label: 'Backend' },
+        { value: 'Infrastructure', label: 'Infrastructure' },
+        { value: 'Marketing', label: 'Marketing' },
+        { value: 'Customer Success', label: 'Customer Success' },
+        { value: 'Management', label: 'Management' },
+    ];
+
     return (
-        <Dialog open={isOpen} onOpenChange={onClose} containerClassName="lg:pl-72">
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[90vw]">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-indigo-900">
-                        <Settings className="h-5 w-5" />
-                        Edit Team Member - {user.name}
-                    </DialogTitle>
-                    <DialogDescription>
-                        Update user profile details and manage account security.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-6 pt-4">
-                    {/* User Information Section */}
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                            <UserIcon className="h-5 w-5 text-indigo-500" />
-                            <h4 className="font-semibold text-slate-800">User Information</h4>
-                        </div>
-
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor={`name-${user.id}`}>Full Name</Label>
-                                <Input
-                                    id={`name-${user.id}`}
-                                    value={newName}
-                                    onChange={(e) => setNewName(e.target.value)}
-                                    placeholder="John Doe"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor={`email-${user.id}`}>Email Address</Label>
-                                <Input
-                                    id={`email-${user.id}`}
-                                    type="email"
-                                    value={newEmail}
-                                    onChange={(e) => setNewEmail(e.target.value)}
-                                    placeholder="john@company.com"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor={`role-${user.id}`}>Role</Label>
-                                <select
-                                    id={`role-${user.id}`}
-                                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    value={newRole}
-                                    onChange={(e) => setNewRole(e.target.value as User['role'])}
-                                    disabled={!isManager}
-                                >
-                                    <option value="developer">Developer</option>
-                                    <option value="manager">Manager</option>
-                                    <option value="finance">Finance Manager</option>
-                                    <option value="leadership">Leadership</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor={`department-${user.id}`}>Department</Label>
-                                <select
-                                    id={`department-${user.id}`}
-                                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    value={newDepartment}
-                                    onChange={(e) => setNewDepartment(e.target.value)}
-                                >
-                                    <option value="">Select Department</option>
-                                    <option value="Frontend">Frontend Development</option>
-                                    <option value="Backend">Backend Development</option>
-                                    <option value="Marketing">Marketing & Growth</option>
-                                    <option value="Customer Success">Customer Success</option>
-                                    <option value="Management">Management</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor={`rate-${user.id}`}>Hourly Rate ($)</Label>
-                                <Input
-                                    id={`rate-${user.id}`}
-                                    type="number"
-                                    value={newHourlyRate}
-                                    onChange={(e) => setNewHourlyRate(parseFloat(e.target.value) || 0)}
-                                    placeholder="0"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor={`target-${user.id}`}>Daily Hours Target</Label>
-                                <Input
-                                    id={`target-${user.id}`}
-                                    type="number"
-                                    value={newDailyHoursTarget}
-                                    onChange={(e) => setNewDailyHoursTarget(parseFloat(e.target.value) || 8)}
-                                    placeholder="8"
-                                />
-                            </div>
-                        </div>
-
-                        {infoError && <p className="text-sm text-red-600">{infoError}</p>}
-                        {infoSuccess && <p className="text-sm text-green-600">✓ Information updated successfully!</p>}
-
-                        <Button
-                            onClick={handleInfoUpdate}
-                            disabled={infoLoading || !hasInfoChanges}
-                            size="sm"
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                        >
-                            {infoLoading ? "Saving..." : <><Save className="h-3 w-3 mr-1" /> Save Changes</>}
-                        </Button>
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-w-2xl w-[95vw] md:w-full p-0 gap-0 overflow-hidden bg-white rounded-xl shadow-2xl border-none">
+                {/* Header Area */}
+                <div className="bg-slate-50/80 p-6 border-b border-slate-100 flex items-start gap-4">
+                    <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                        <UserIcon className="h-6 w-6 text-indigo-600" />
                     </div>
+                    <div>
+                        <DialogTitle className="text-xl font-bold text-slate-800 tracking-tight">
+                            Edit {user.name}
+                        </DialogTitle>
+                        <DialogDescription className="text-sm text-slate-500 mt-1">
+                            Update profile details and manage security settings.
+                        </DialogDescription>
+                    </div>
+                </div>
 
-                    {/* Password Change Section */}
-                    <div className="space-y-4 pt-4 border-t border-slate-100">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Lock className="h-5 w-5 text-indigo-500" />
-                                <h4 className="font-semibold text-slate-800">Change Password</h4>
-                            </div>
-                            {isManager && (
-                                <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={forcePasswordChange}
-                                        onChange={(e) => setForcePasswordChange(e.target.checked)}
-                                        className="rounded border-slate-300"
+                {/* Tab Navigation */}
+                <div className="flex px-6 border-b border-slate-100">
+                    <button
+                        className={`py-3 px-4 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'profile' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+                        onClick={() => setActiveTab('profile')}
+                    >
+                        <Settings className="h-4 w-4" /> Profile Details
+                    </button>
+                    <button
+                        className={`py-3 px-4 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'security' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+                        onClick={() => setActiveTab('security')}
+                    >
+                        <Lock className="h-4 w-4" /> Security
+                    </button>
+                </div>
+
+                {/* Scrollable Content Area */}
+                <div className="p-6 max-h-[60vh] min-h-[400px] sm:min-h-[480px] overflow-y-auto w-full">
+                    {activeTab === 'profile' && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="grid sm:grid-cols-2 gap-5">
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider" htmlFor={`name-${user.id}`}>Full Name</Label>
+                                    <Input
+                                        id={`name-${user.id}`}
+                                        value={newName}
+                                        onChange={(e) => setNewName(e.target.value)}
+                                        className="h-11 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
                                     />
-                                    Force Reset (Skip current password)
-                                </label>
-                            )}
-                        </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider" htmlFor={`email-${user.id}`}>Email Address</Label>
+                                    <Input
+                                        id={`email-${user.id}`}
+                                        type="email"
+                                        value={newEmail}
+                                        onChange={(e) => setNewEmail(e.target.value)}
+                                        className="h-11 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider" htmlFor={`role-${user.id}`}>Role</Label>
+                                    <select
+                                        id={`role-${user.id}`}
+                                        className="flex w-full h-11 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors disabled:opacity-50"
+                                        value={newRole}
+                                        onChange={(e) => setNewRole(e.target.value as User['role'])}
+                                        disabled={!isManager}
+                                    >
+                                        <option value="developer">Developer</option>
+                                        <option value="manager">Manager</option>
+                                        <option value="finance">Finance Manager</option>
+                                        <option value="leadership">Leadership</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider" htmlFor={`rate-${user.id}`}>Hourly Rate ($)</Label>
+                                    <Input
+                                        id={`rate-${user.id}`}
+                                        type="number"
+                                        value={newHourlyRate}
+                                        onChange={(e) => setNewHourlyRate(parseFloat(e.target.value) || 0)}
+                                        className="h-11 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+                                    />
+                                </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider" htmlFor={`target-${user.id}`}>Daily Hours Target</Label>
+                                    <Input
+                                        id={`target-${user.id}`}
+                                        type="number"
+                                        value={newDailyHoursTarget}
+                                        onChange={(e) => setNewDailyHoursTarget(parseFloat(e.target.value) || 8)}
+                                        className="h-11 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+                                    />
+                                </div>
 
-                        <div className="grid md:grid-cols-2 gap-4">
-                            {!forcePasswordChange && (
-                                <div className="space-y-2 md:col-span-2">
-                                    <Label htmlFor={`current-pwd-${user.id}`}>Current Password</Label>
-                                    <div className="relative">
-                                        <Input
-                                            id={`current-pwd-${user.id}`}
-                                            type={showCurrentPassword ? "text" : "password"}
-                                            value={currentPassword}
-                                            onChange={(e) => setCurrentPassword(e.target.value)}
-                                            placeholder="Enter current password"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                        >
-                                            {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                        </button>
+                                <div className="space-y-3 sm:col-span-2 pt-2">
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Departments</Label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {DEPARTMENTS.map((dept) => {
+                                            const isSelected = newDepartments.includes(dept.value);
+                                            return (
+                                                <button
+                                                    key={dept.value}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (isSelected) {
+                                                            setNewDepartments(newDepartments.filter(d => d !== dept.value));
+                                                        } else {
+                                                            setNewDepartments([...newDepartments, dept.value]);
+                                                        }
+                                                    }}
+                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border cursor-pointer select-none ${isSelected
+                                                        ? 'bg-indigo-100 border-indigo-200 text-indigo-700 shadow-sm outline-none ring-2 ring-indigo-500/20'
+                                                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                        }`}
+                                                >
+                                                    {dept.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    {newDepartments.length === 0 && (
+                                        <p className="text-xs text-amber-500 font-medium">Please select at least one department.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {infoError && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">{infoError}</div>}
+                            {infoSuccess && <div className="p-3 bg-green-50 text-green-700 text-sm rounded-lg border border-green-100 flex items-center gap-2"><Save className="h-4 w-4" /> Profile updated successfully!</div>}
+                        </div>
+                    )}
+
+                    {activeTab === 'security' && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            {isManager && (
+                                <div className="p-4 bg-amber-50 border border-amber-100 rounded-lg flex items-start gap-3">
+                                    <ShieldAlert className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-amber-900">Manager Override</p>
+                                        <p className="text-xs text-amber-700 mt-1 mb-2">As a manager, you can bypass the requirement for the current password to force a reset.</p>
+                                        <label className="flex items-center gap-2 text-sm font-medium text-amber-900 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={forcePasswordChange}
+                                                onChange={(e) => setForcePasswordChange(e.target.checked)}
+                                                className="rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                                            />
+                                            Force Reset Password
+                                        </label>
                                     </div>
                                 </div>
                             )}
 
-                            <div className="space-y-2">
-                                <Label htmlFor={`new-pwd-${user.id}`}>New Password</Label>
-                                <div className="relative">
-                                    <Input
-                                        id={`new-pwd-${user.id}`}
-                                        type={showNewPassword ? "text" : "password"}
-                                        value={newPassword}
-                                        onChange={(e) => setNewPassword(e.target.value)}
-                                        placeholder="Min. 8 characters"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowNewPassword(!showNewPassword)}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                    >
-                                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                    </button>
+                            <div className="space-y-4">
+                                {!forcePasswordChange && (
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider" htmlFor={`current-pwd-${user.id}`}>Current Password</Label>
+                                        <div className="relative">
+                                            <Input
+                                                id={`current-pwd-${user.id}`}
+                                                type={showCurrentPassword ? "text" : "password"}
+                                                value={currentPassword}
+                                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                                placeholder="Enter current password"
+                                                className="h-11 bg-slate-50 border-slate-200 focus:bg-white pr-10"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                            >
+                                                {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="grid sm:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider" htmlFor={`new-pwd-${user.id}`}>New Password</Label>
+                                        <div className="relative">
+                                            <Input
+                                                id={`new-pwd-${user.id}`}
+                                                type={showNewPassword ? "text" : "password"}
+                                                value={newPassword}
+                                                onChange={(e) => setNewPassword(e.target.value)}
+                                                placeholder="Min. 8 characters"
+                                                className="h-11 bg-slate-50 border-slate-200 focus:bg-white pr-10"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowNewPassword(!showNewPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                            >
+                                                {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider" htmlFor={`confirm-pwd-${user.id}`}>Confirm Password</Label>
+                                        <div className="relative">
+                                            <Input
+                                                id={`confirm-pwd-${user.id}`}
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                                placeholder="Confirm new password"
+                                                className="h-11 bg-slate-50 border-slate-200 focus:bg-white pr-10"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                            >
+                                                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor={`confirm-pwd-${user.id}`}>Confirm Password</Label>
-                                <div className="relative">
-                                    <Input
-                                        id={`confirm-pwd-${user.id}`}
-                                        type={showConfirmPassword ? "text" : "password"}
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                        placeholder="Confirm new password"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                    >
-                                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                    </button>
-                                </div>
-                            </div>
+                            {passwordError && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">{passwordError}</div>}
+                            {passwordSuccess && <div className="p-3 bg-green-50 text-green-700 text-sm rounded-lg border border-green-100 flex items-center gap-2"><Lock className="h-4 w-4" /> Password updated successfully!</div>}
                         </div>
-
-                        {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
-                        {passwordSuccess && <p className="text-sm text-green-600">✓ Password changed successfully!</p>}
-
-                        <Button
-                            onClick={handlePasswordChange}
-                            disabled={passwordLoading}
-                            size="sm"
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                        >
-                            {passwordLoading ? "Changing..." : <><Lock className="h-3 w-3 mr-1" /> {forcePasswordChange ? "Reset Password" : "Change Password"}</>}
-                        </Button>
-                    </div>
+                    )}
                 </div>
 
-                <DialogFooter className="mt-6 border-t pt-4">
-                    <Button variant="outline" onClick={onClose}>Close</Button>
-                </DialogFooter>
+                {/* Footer Area */}
+                <div className="bg-slate-50 p-4 border-t border-slate-200 flex items-center justify-end gap-3">
+                    <Button variant="ghost" onClick={onClose} className="text-slate-600 hover:text-slate-900 hover:bg-slate-200">
+                        Cancel
+                    </Button>
+
+                    {activeTab === 'profile' ? (
+                        <Button
+                            onClick={handleInfoUpdate}
+                            disabled={infoLoading || !hasInfoChanges}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
+                        >
+                            {infoLoading ? "Saving..." : "Save Profile Changes"}
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={handlePasswordChange}
+                            disabled={passwordLoading || (!forcePasswordChange && !currentPassword) || !newPassword}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
+                        >
+                            {passwordLoading ? "Changing..." : (forcePasswordChange ? "Force Reset Password" : "Change Password")}
+                        </Button>
+                    )}
+                </div>
             </DialogContent>
         </Dialog>
     );
@@ -546,7 +602,7 @@ export default function UserManagementPage() {
         role: 'developer',
         password: '',
         hourlyRate: 0,
-        department: 'Frontend',
+        departments: [],
         dailyHoursTarget: 8
     });
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -563,8 +619,8 @@ export default function UserManagementPage() {
             return;
         }
 
-        if (!newUser.department) {
-            setCreateError("Department is required");
+        if (!newUser.departments || newUser.departments.length === 0) {
+            setCreateError("At least one department is required");
             return;
         }
 
@@ -591,7 +647,7 @@ export default function UserManagementPage() {
             role: 'developer',
             password: '',
             hourlyRate: 0,
-            department: 'Frontend',
+            departments: [],
             dailyHoursTarget: 8
         });
         setConfirmPassword("");
@@ -670,41 +726,47 @@ export default function UserManagementPage() {
                 </div>
 
                 {/* Create User Dialog */}
-                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen} containerClassName="lg:pl-72">
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2 text-blue-900">
-                                <UserPlus className="h-5 w-5" />
-                                Add New Team Member
-                            </DialogTitle>
-                            <DialogDescription>
-                                Create a new user account and grant access to the platform.
-                            </DialogDescription>
-                        </DialogHeader>
+                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                    <DialogContent className="max-w-2xl w-[95vw] md:w-full p-0 gap-0 overflow-hidden bg-white rounded-xl shadow-2xl border-none">
+                        <div className="bg-slate-50/80 p-6 border-b border-slate-100 flex items-start gap-4">
+                            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                <UserPlus className="h-6 w-6 text-blue-600" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-xl font-bold text-slate-800 tracking-tight">
+                                    Add New Team Member
+                                </DialogTitle>
+                                <DialogDescription className="text-sm text-slate-500 mt-1">
+                                    Create a new user account and grant access to the platform.
+                                </DialogDescription>
+                            </div>
+                        </div>
 
-                        <div className="space-y-4 py-4">
-                            <div className="grid md:grid-cols-2 gap-4">
+                        <div className="p-6 max-h-[70vh] overflow-y-auto w-full space-y-6">
+                            <div className="grid sm:grid-cols-2 gap-5">
                                 <div className="space-y-2">
-                                    <Label>Full Name *</Label>
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Full Name *</Label>
                                     <Input
                                         placeholder="John Doe"
                                         value={newUser.name}
                                         onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                                        className="h-11 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Email Address *</Label>
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Address *</Label>
                                     <Input
                                         type="email"
                                         placeholder="john@company.com"
                                         value={newUser.email}
                                         onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                                        className="h-11 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Role *</Label>
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Role *</Label>
                                     <select
-                                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                        className="flex w-full h-11 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
                                         value={newUser.role}
                                         onChange={(e) => setNewUser({ ...newUser, role: e.target.value as User['role'] })}
                                     >
@@ -715,98 +777,128 @@ export default function UserManagementPage() {
                                     </select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Department *</Label>
-                                    <select
-                                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                                        value={newUser.department}
-                                        onChange={(e) => setNewUser({ ...newUser, department: e.target.value as User['department'] })}
-                                    >
-                                        <option value="">Select Department</option>
-                                        <option value="Frontend">Frontend Development</option>
-                                        <option value="Backend">Backend Development</option>
-                                        <option value="Marketing">Marketing & Growth</option>
-                                        <option value="Customer Success">Customer Success</option>
-                                        <option value="Management">Management</option>
-                                    </select>
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hourly Rate ($)</Label>
+                                    <Input
+                                        type="number"
+                                        placeholder="0"
+                                        value={newUser.hourlyRate || ''}
+                                        onChange={(e) => setNewUser({ ...newUser, hourlyRate: parseFloat(e.target.value) || 0 })}
+                                        className="h-11 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+                                    />
                                 </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Daily Hours Target</Label>
+                                    <Input
+                                        type="number"
+                                        placeholder="8"
+                                        value={newUser.dailyHoursTarget || ''}
+                                        onChange={(e) => setNewUser({ ...newUser, dailyHoursTarget: parseFloat(e.target.value) || 8 })}
+                                        className="h-11 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+                                    />
+                                </div>
+
+                                <div className="space-y-3 sm:col-span-2 py-2">
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Departments *</Label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {[
+                                            { value: 'Frontend', label: 'Frontend' },
+                                            { value: 'Backend', label: 'Backend' },
+                                            { value: 'Infrastructure', label: 'Infrastructure' },
+                                            { value: 'Marketing', label: 'Marketing' },
+                                            { value: 'Customer Success', label: 'Customer Success' },
+                                            { value: 'Management', label: 'Management' },
+                                        ].map((dept) => {
+                                            const isSelected = (newUser.departments || []).includes(dept.value);
+                                            return (
+                                                <button
+                                                    key={dept.value}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const current = newUser.departments || [];
+                                                        if (isSelected) {
+                                                            setNewUser({ ...newUser, departments: current.filter(d => d !== dept.value) });
+                                                        } else {
+                                                            setNewUser({ ...newUser, departments: [...current, dept.value] });
+                                                        }
+                                                    }}
+                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border cursor-pointer select-none ${isSelected
+                                                            ? 'bg-blue-100 border-blue-200 text-blue-700 shadow-sm outline-none ring-2 ring-blue-500/20'
+                                                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                        }`}
+                                                >
+                                                    {dept.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    {(!newUser.departments || newUser.departments.length === 0) && (
+                                        <p className="text-xs text-amber-500 font-medium">Please select at least one department.</p>
+                                    )}
+                                </div>
+
                                 <div className="space-y-2">
-                                    <Label>Password *</Label>
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Password *</Label>
                                     <div className="relative">
                                         <Input
                                             type={showPassword ? "text" : "password"}
                                             placeholder="Min. 8 characters"
                                             value={newUser.password}
                                             onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                                            className="h-11 bg-slate-50 border-slate-200 focus:bg-white transition-colors pr-10"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                                         >
                                             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                         </button>
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Confirm Password *</Label>
+                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Confirm Password *</Label>
                                     <div className="relative">
                                         <Input
                                             type={showConfirmPassword ? "text" : "password"}
                                             placeholder="Confirm password"
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
+                                            className="h-11 bg-slate-50 border-slate-200 focus:bg-white transition-colors pr-10"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                                         >
                                             {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                         </button>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Hourly Rate ($)</Label>
-                                    <Input
-                                        type="number"
-                                        placeholder="0"
-                                        value={newUser.hourlyRate}
-                                        onChange={(e) => setNewUser({ ...newUser, hourlyRate: parseFloat(e.target.value) || 0 })}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Daily Hours Target</Label>
-                                    <Input
-                                        type="number"
-                                        placeholder="8"
-                                        value={newUser.dailyHoursTarget}
-                                        onChange={(e) => setNewUser({ ...newUser, dailyHoursTarget: parseFloat(e.target.value) || 8 })}
-                                    />
-                                </div>
                             </div>
+
+                            {createError && (
+                                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-start gap-2">
+                                    <p>{createError}</p>
+                                </div>
+                            )}
                         </div>
 
-                        {createError && (
-                            <div className="rounded-md bg-red-50 p-3 border border-red-200">
-                                <p className="text-sm text-red-600">{createError}</p>
-                            </div>
-                        )}
-
-                        <DialogFooter>
+                        <div className="bg-slate-50 p-4 border-t border-slate-200 flex items-center justify-end gap-3 rounded-b-xl">
                             <Button
-                                variant="outline"
+                                variant="ghost"
                                 onClick={() => setIsCreateOpen(false)}
+                                className="text-slate-600 hover:text-slate-900 hover:bg-slate-200"
                             >
                                 Cancel
                             </Button>
                             <Button
                                 onClick={handleCreateUser}
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                className="bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20"
                             >
                                 <UserPlus className="h-4 w-4 mr-2" />
                                 Create Account
                             </Button>
-                        </DialogFooter>
+                        </div>
                     </DialogContent>
                 </Dialog>
 

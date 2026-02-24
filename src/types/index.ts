@@ -24,7 +24,8 @@ export interface User {
     role: 'manager' | 'developer' | 'leadership' | 'finance';
     isSuperAdmin?: boolean;
     hourlyRate?: number;
-    department?: 'Frontend' | 'Backend' | 'Marketing' | 'Customer Success' | 'Management';
+    department?: string;
+    departments?: string[];
     dailyHoursTarget?: number;
     bankDetails?: BankDetails;
 }

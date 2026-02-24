@@ -72,8 +72,11 @@ export default function DashboardPage() {
     // 2. Team by Department
     const departmentCounts: Record<string, number> = {};
     activeTeamMembers.forEach(user => {
-        const dept = user.department || 'Unassigned';
-        departmentCounts[dept] = (departmentCounts[dept] || 0) + 1;
+        const depts = (user as any).departments || (user.department ? [user.department] : ['Unassigned']);
+        if (depts.length === 0) depts.push('Unassigned');
+        depts.forEach((dept: string) => {
+            departmentCounts[dept] = (departmentCounts[dept] || 0) + 1;
+        });
     });
 
     const sortedDepartments = Object.entries(departmentCounts).sort((a, b) => b[1] - a[1]);
@@ -86,7 +89,7 @@ export default function DashboardPage() {
 
     const CATEGORY_CONFIG = {
         Development: {
-            departments: ['Frontend', 'Backend', 'Frontend Development', 'Backend Development'],
+            departments: ['Frontend', 'Backend', 'Infrastructure', 'Frontend Development', 'Backend Development'],
             workTypes: ['feature', 'bug', 'refactor', 'testing', 'documentation'],
             colors: {
                 feature: '#3b82f6',
@@ -150,8 +153,10 @@ export default function DashboardPage() {
             .sort((a, b) => b.hours - a.hours);
 
         // Category Impact
-        const userDeptMap: Record<string, string> = {};
-        activeTeamMembers.forEach(u => { userDeptMap[u.id] = (u as any).department || 'Other'; });
+        const userDeptsMap: Record<string, string[]> = {};
+        activeTeamMembers.forEach(u => {
+            userDeptsMap[u.id] = (u as any).departments || (u.department ? [u.department] : []);
+        });
 
         const categoryImpacts: Record<string, { workTypes: Record<string, number>, total: number }> = {
             Development: { workTypes: {}, total: 0 },
@@ -168,12 +173,12 @@ export default function DashboardPage() {
         currentMonthLogs.forEach(log => {
             if (!activeTeamMembers.find(u => u.id === log.userId)) return;
 
-            const dept = userDeptMap[log.userId] || 'Other';
+            const userDepts = userDeptsMap[log.userId] || [];
             const workType = log.workType?.toLowerCase() || 'other';
 
             let matchedCategory: string | null = null;
             for (const [cat, config] of Object.entries(CATEGORY_CONFIG)) {
-                if (config.departments.includes(dept)) {
+                if (userDepts.some(dept => config.departments.includes(dept))) {
                     matchedCategory = cat;
                     break;
                 }

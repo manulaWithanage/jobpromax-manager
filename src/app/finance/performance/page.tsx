@@ -30,6 +30,7 @@ const CHART_COLORS = ['#10B981', '#F59E0B', '#3B82F6', '#8B5CF6', '#EC4899', '#0
 const DEPARTMENT_COLORS: Record<string, { bg: string; text: string; border: string; hex: string }> = {
     'Frontend': { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300', hex: '#10B981' },
     'Backend': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300', hex: '#3B82F6' },
+    'Infrastructure': { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-300', hex: '#64748B' },
     'Marketing': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300', hex: '#F59E0B' },
     'Customer Success': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300', hex: '#8B5CF6' },
     'Management': { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-300', hex: '#EC4899' },
@@ -215,11 +216,16 @@ export default function TeamPerformancePage() {
     const departmentData = useMemo(() => {
         const deptMap = new Map<string, number>();
         for (const u of userPerformance) {
-            const dept = u.department || 'Other';
-            deptMap.set(dept, (deptMap.get(dept) || 0) + u.estimatedCost);
+            const user = users.find(usr => usr.id === u.userId);
+            const depts = (user as any)?.departments || (u.department ? [u.department] : ['Other']);
+            if (depts.length === 0) depts.push('Other');
+            const costPerDept = u.estimatedCost / depts.length;
+            depts.forEach((dept: string) => {
+                deptMap.set(dept, (deptMap.get(dept) || 0) + costPerDept);
+            });
         }
         return Array.from(deptMap.entries()).map(([name, value]) => ({ name, value }));
-    }, [userPerformance]);
+    }, [userPerformance, users]);
 
     // Data for bar chart (member hours)
     const memberChartData = useMemo(() => {
@@ -534,14 +540,22 @@ export default function TeamPerformancePage() {
                                         <TableRow key={u.userId}>
                                             <TableCell className="font-semibold text-slate-900">{u.userName}</TableCell>
                                             <TableCell>
-                                                {u.department && (
-                                                    <Badge
-                                                        variant="outline"
-                                                        className={`text-xs ${deptColor.bg} ${deptColor.text} ${deptColor.border}`}
-                                                    >
-                                                        {u.department}
-                                                    </Badge>
-                                                )}
+                                                {(() => {
+                                                    const user = users.find(usr => usr.id === u.userId);
+                                                    const depts = (user as any)?.departments || (u.department ? [u.department] : []);
+                                                    return depts.length > 0 ? (
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {depts.map((dept: string) => {
+                                                                const dc = getDeptColor(dept);
+                                                                return (
+                                                                    <Badge key={dept} variant="outline" className={`text-xs ${dc.bg} ${dc.text} ${dc.border}`}>
+                                                                        {dept}
+                                                                    </Badge>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ) : null;
+                                                })()}
                                             </TableCell>
                                             <TableCell className="text-right text-slate-500">${u.hourlyRate}/hr</TableCell>
                                             <TableCell className="text-right text-green-600 font-medium">{u.approvedHours.toFixed(1)}h</TableCell>

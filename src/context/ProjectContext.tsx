@@ -193,6 +193,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 role: updates.role,
                 hourlyRate: updates.hourlyRate,
                 department: updates.department as any,
+                departments: updates.departments as any,
                 dailyHoursTarget: updates.dailyHoursTarget,
             });
 

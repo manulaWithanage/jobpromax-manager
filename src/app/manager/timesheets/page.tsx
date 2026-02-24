@@ -69,20 +69,15 @@ export default function ManagerTimesheetsPage() {
     }, [developers, selectedDevId]);
 
     const [modalHourlyRate, setModalHourlyRate] = useState<number>(0);
-    const [modalDept, setModalDept] = useState<string>("");
+    const [modalDepts, setModalDepts] = useState<string[]>([]);
     const [modalDailyHours, setModalDailyHours] = useState<number>(8);
 
     // Sync modal state when it opens or developer changes
     useEffect(() => {
         if (showDevSettings && selectedDev) {
             console.log('[ManagerTimesheets] Syncing modal state for:', selectedDev.name);
-            console.log('[ManagerTimesheets] Current values:', {
-                hourlyRate: selectedDev.hourlyRate,
-                department: selectedDev.department,
-                dailyHoursTarget: selectedDev.dailyHoursTarget
-            });
             setModalHourlyRate(selectedDev.hourlyRate || 0);
-            setModalDept(selectedDev.department || "");
+            setModalDepts(selectedDev.departments || (selectedDev.department ? [selectedDev.department] : []));
             setModalDailyHours(selectedDev.dailyHoursTarget || 8);
         }
     }, [showDevSettings, selectedDevId, selectedDev]);
@@ -490,23 +485,36 @@ export default function ManagerTimesheetsPage() {
                                     </div>
 
                                     <div className="space-y-4">
-                                        {/* Department Setting */}
                                         <div className="space-y-2">
                                             <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                                                <ShieldCheck className="h-3 w-3" /> Specialization / Department
+                                                <ShieldCheck className="h-3 w-3" /> Departments
                                             </Label>
-                                            <select
-                                                className="w-full h-12 px-4 rounded-xl bg-slate-50 border-none text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-purple-200 transition-all outline-none cursor-pointer hover:bg-slate-100"
-                                                value={modalDept}
-                                                onChange={(e) => setModalDept(e.target.value)}
-                                            >
-                                                <option value="" disabled>Select Department</option>
-                                                <option value="Frontend">Frontend Development</option>
-                                                <option value="Backend">Backend Development</option>
-                                                <option value="Marketing">Marketing & Growth</option>
-                                                <option value="Customer Success">Customer Success</option>
-                                                <option value="Management">Management</option>
-                                            </select>
+                                            <div className="grid grid-cols-2 gap-1 p-3 rounded-xl bg-slate-50 max-h-48 overflow-y-auto">
+                                                {[
+                                                    { value: 'Frontend', label: 'Frontend Dev' },
+                                                    { value: 'Backend', label: 'Backend Dev' },
+                                                    { value: 'Infrastructure', label: 'Infrastructure' },
+                                                    { value: 'Marketing', label: 'Marketing' },
+                                                    { value: 'Customer Success', label: 'Customer Success' },
+                                                    { value: 'Management', label: 'Management' },
+                                                ].map((dept) => (
+                                                    <label key={dept.value} className="flex items-center gap-2 cursor-pointer text-sm py-1.5 px-2 rounded-lg hover:bg-white transition-colors">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                                                            checked={modalDepts.includes(dept.value)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setModalDepts([...modalDepts, dept.value]);
+                                                                } else {
+                                                                    setModalDepts(modalDepts.filter(d => d !== dept.value));
+                                                                }
+                                                            }}
+                                                        />
+                                                        <span className="font-semibold text-slate-700">{dept.label}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
                                         </div>
 
                                         <div className="space-y-2">
@@ -610,9 +618,10 @@ export default function ManagerTimesheetsPage() {
                                                             updates.hourlyRate = modalHourlyRate;
                                                         }
 
-                                                        // Only include department if it's not empty
-                                                        if (modalDept && modalDept !== '') {
-                                                            updates.department = modalDept;
+                                                        // Include departments
+                                                        if (modalDepts.length > 0) {
+                                                            updates.departments = modalDepts;
+                                                            updates.department = modalDepts[0];
                                                         }
 
                                                         // Only include dailyHoursTarget if it's a valid number
