@@ -151,8 +151,12 @@ export default function SharedInvoicePage() {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                            <Receipt className="h-6 w-6 text-emerald-600" />
+                        <div className="h-16 w-auto flex items-center justify-center">
+                            <img
+                                src="https://jpm-public-storage.nyc3.cdn.digitaloceanspaces.com/website/FinalPoweredbyTJH%20v10.png"
+                                alt="JobProMax Logo"
+                                className="h-full w-auto object-contain"
+                            />
                         </div>
                         <div>
                             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">

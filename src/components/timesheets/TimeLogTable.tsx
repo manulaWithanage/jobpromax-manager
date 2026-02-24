@@ -4,22 +4,42 @@ import { TimeLog } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
-import { CheckCircle2, XCircle, Clock, ExternalLink, MessageSquare, User as UserIcon } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ExternalLink, MessageSquare, User as UserIcon, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { DeleteConfirmationModal } from "@/components/ui/DeleteConfirmationModal";
 
 interface TimeLogTableProps {
     logs: TimeLog[];
     showApprovalActions?: boolean;
     onApprove?: (id: string) => void;
     onReject?: (id: string, comment: string) => void;
+    onDelete?: (id: string) => void;
 }
 
 export function TimeLogTable({
     logs,
     showApprovalActions = false,
     onApprove,
-    onReject
+    onReject,
+    onDelete
 }: TimeLogTableProps) {
+    const [logToDelete, setLogToDelete] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDelete = async () => {
+        if (logToDelete && onDelete) {
+            setIsDeleting(true);
+            try {
+                await onDelete(logToDelete);
+                setLogToDelete(null);
+            } catch (error) {
+                console.error("Failed to delete log:", error);
+            } finally {
+                setIsDeleting(false);
+            }
+        }
+    };
 
     const getStatusBadge = (status: TimeLog['status']) => {
         switch (status) {
@@ -43,7 +63,7 @@ export function TimeLogTable({
                         <TableHead className="w-[100px]">Ticket</TableHead>
                         <TableHead className="w-[80px] text-center">Hours</TableHead>
                         <TableHead className="w-[120px]">Status</TableHead>
-                        {showApprovalActions && <TableHead className="text-right">Actions</TableHead>}
+                        {(showApprovalActions || onDelete) && <TableHead className="text-right">Actions</TableHead>}
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -115,32 +135,47 @@ export function TimeLogTable({
                                 <TableCell>
                                     {getStatusBadge(log.status)}
                                 </TableCell>
-                                {showApprovalActions && (
+                                {(showApprovalActions || (onDelete && log.status === 'pending')) && (
                                     <TableCell className="text-right">
-                                        {log.status === 'pending' ? (
-                                            <div className="flex justify-end gap-2">
+                                        <div className="flex justify-end gap-2">
+                                            {onDelete && (showApprovalActions || log.status === 'pending') && (
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
-                                                    className="text-red-600 hover:bg-red-50 hover:text-red-700 h-8 font-medium"
-                                                    onClick={() => {
-                                                        const comment = prompt("Enter rejection reason:");
-                                                        if (comment && onReject) onReject(log.id, comment);
-                                                    }}
+                                                    className="text-slate-400 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0 transition-colors"
+                                                    onClick={() => setLogToDelete(log.id)}
+                                                    title="Delete Log"
                                                 >
-                                                    Reject
+                                                    <Trash2 className="w-4 h-4" />
                                                 </Button>
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 px-3 font-medium"
-                                                    onClick={() => onApprove && onApprove(log.id)}
-                                                >
-                                                    Approve
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <span className="text-slate-400 text-xs italic">Finalized</span>
-                                        )}
+                                            )}
+                                            {showApprovalActions && (
+                                                log.status === 'pending' ? (
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="text-red-600 hover:bg-red-50 hover:text-red-700 h-8 font-medium"
+                                                            onClick={() => {
+                                                                const comment = prompt("Enter rejection reason:");
+                                                                if (comment && onReject) onReject(log.id, comment);
+                                                            }}
+                                                        >
+                                                            Reject
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 px-3 font-medium"
+                                                            onClick={() => onApprove && onApprove(log.id)}
+                                                        >
+                                                            Approve
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-slate-400 text-xs italic">Finalized</span>
+                                                )
+                                            )}
+                                        </div>
                                     </TableCell>
                                 )}
                             </TableRow>
@@ -148,6 +183,15 @@ export function TimeLogTable({
                     )}
                 </TableBody>
             </Table>
+
+            <DeleteConfirmationModal
+                isOpen={!!logToDelete}
+                onClose={() => setLogToDelete(null)}
+                onConfirm={handleDelete}
+                isDeleting={isDeleting}
+                title="Delete Time Log"
+                description="Are you sure you want to delete this time log? This action cannot be undone."
+            />
         </div>
     );
 }

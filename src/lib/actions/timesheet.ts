@@ -4,6 +4,7 @@ import { requireAuth, requireRole } from '../auth/serverAuth';
 import connectDB from '../mongodb';
 import TimeLog from '@/models/TimeLog';
 import { TimeLog as TimeLogType } from '@/types';
+import { createActivity } from '../activityActions';
 
 interface TimeLogFilters {
     userId?: string;
@@ -140,6 +141,17 @@ export async function updateLogStatus(
 
     await log.save();
 
+    await createActivity({
+        action: status === 'approved' ? 'TIMESHEET_APPROVED' : 'TIMESHEET_REJECTED',
+        targetType: 'timesheet',
+        targetId: log._id.toString(),
+        targetName: `${log.userName}'s log on ${log.date}`,
+        details: {
+            hours: log.hours,
+            comment: comment || '',
+        }
+    });
+
     return {
         id: log._id.toString(),
         userId: log.userId,
@@ -156,4 +168,48 @@ export async function updateLogStatus(
         createdAt: log.createdAt.toISOString(),
         updatedAt: log.updatedAt.toISOString(),
     };
+}
+
+/**
+ * Delete a time log entry
+ * Authorization: 
+ * - Developers: only their own logs AND status must be 'pending'
+ * - Managers: any log
+ */
+export async function deleteTimeLog(logId: string): Promise<{ success: boolean; message: string }> {
+    const user = await requireAuth();
+    await connectDB();
+
+    const log = await TimeLog.findById(logId);
+    if (!log) {
+        throw new Error('Time log not found');
+    }
+
+    // Security checks
+    if (user.role === 'developer') {
+        if (log.userId !== user.id) {
+            throw new Error('You can only delete your own time logs');
+        }
+        if (log.status !== 'pending') {
+            throw new Error('You can only delete logs that are still pending approval');
+        }
+    } else if (user.role !== 'manager') {
+        throw new Error('Unauthorized to delete time logs');
+    }
+
+    await TimeLog.findByIdAndDelete(logId);
+
+    // Only log if the user deleting is not the owner (manager deleting developer's log)
+    // or if you want to log all deletions. Let's log all deletions.
+    await createActivity({
+        action: 'TIMESHEET_ENTRY_DELETED',
+        targetType: 'timesheet',
+        targetId: logId,
+        targetName: `${log.userName}'s log on ${log.date}`,
+        details: {
+            hours: log.hours
+        }
+    });
+
+    return { success: true, message: 'Time log deleted successfully' };
 }

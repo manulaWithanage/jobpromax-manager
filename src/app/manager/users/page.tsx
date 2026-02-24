@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useProject } from "@/context/ProjectContext";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -59,10 +59,22 @@ function formatRelativeTime(timestamp: string): string {
     return then.toLocaleDateString();
 }
 
+import { getActivitiesByUser } from "@/lib/activityActions";
+
 // User Activity Modal Component
 function UserActivityModal({ user, isOpen, onClose }: { user: User; isOpen: boolean; onClose: () => void }) {
-    const { getRecentActivitiesByUser } = useActivity();
-    const activities = getRecentActivitiesByUser(user.id, 50);
+    const [activities, setActivities] = useState<ActivityLog[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (isOpen) {
+            setLoading(true);
+            getActivitiesByUser(user.id, 50)
+                .then(data => setActivities(data as ActivityLog[]))
+                .catch(err => console.error("Failed to fetch user activities", err))
+                .finally(() => setLoading(false));
+        }
+    }, [user.id, isOpen]);
 
     const renderDetailValue = (val: unknown): React.ReactNode => {
         if (typeof val === 'string' || typeof val === 'number') return val;
@@ -83,7 +95,12 @@ function UserActivityModal({ user, isOpen, onClose }: { user: User; isOpen: bool
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto pr-2 space-y-3">
-                    {activities.length === 0 ? (
+                    {loading ? (
+                        <div className="text-center py-12 text-slate-500">
+                            <Activity className="h-8 w-8 mx-auto mb-3 animate-pulse text-blue-400" />
+                            <p className="font-medium">Loading activities...</p>
+                        </div>
+                    ) : activities.length === 0 ? (
                         <div className="text-center py-12 text-slate-500">
                             <Activity className="h-12 w-12 mx-auto mb-3 opacity-30" />
                             <p className="font-medium">No recent activity</p>
@@ -132,6 +149,20 @@ function UserActivityModal({ user, isOpen, onClose }: { user: User; isOpen: bool
                                                             {renderDetailValue(activity.details.oldStatus)} → {renderDetailValue(activity.details.newStatus)}
                                                         </p>
                                                     )}
+                                                    {(() => {
+                                                        if (!activity.details?.changes) return null;
+                                                        const changesObj = activity.details.changes as Record<string, { old: unknown, new: unknown }>;
+                                                        return Object.keys(changesObj).map((field) => {
+                                                            const detailVals = changesObj[field];
+                                                            return (
+                                                                <p key={field} className="capitalize">
+                                                                    {field.replace(/([A-Z])/g, ' $1').trim()}:{' '}
+                                                                    <span className="line-through text-slate-400 mr-1">{renderDetailValue(detailVals?.old)}</span>
+                                                                    <span className="text-slate-700">→ {renderDetailValue(detailVals?.new)}</span>
+                                                                </p>
+                                                            );
+                                                        });
+                                                    })()}
                                                 </div>
                                             )}
                                         </div>
@@ -219,16 +250,6 @@ function UserEditModal({ user, isOpen, onClose }: { user: User; isOpen: boolean;
                 dailyHoursTarget: newDailyHoursTarget
             });
 
-            await addActivity({
-                action: 'USER_SETTINGS_UPDATED',
-                targetType: 'user',
-                targetId: user.id,
-                targetName: newName,
-                details: {
-                    updatedBy: 'manager'
-                }
-            });
-
             setInfoSuccess(true);
             setTimeout(() => setInfoSuccess(false), 3000);
         } catch (error: unknown) {
@@ -266,17 +287,6 @@ function UserEditModal({ user, isOpen, onClose }: { user: User; isOpen: boolean;
         setPasswordLoading(true);
         try {
             await changeUserPassword(user.id, newPassword, currentPassword, forcePasswordChange);
-
-            await addActivity({
-                action: 'PASSWORD_CHANGED',
-                targetType: 'user',
-                targetId: user.id,
-                targetName: user.name,
-                details: {
-                    isForced: forcePasswordChange,
-                    updatedBy: 'manager'
-                }
-            });
 
             setPasswordSuccess(true);
             setCurrentPassword("");
@@ -518,7 +528,11 @@ function UserEditModal({ user, isOpen, onClose }: { user: User; isOpen: boolean;
 }
 
 
+type TabView = 'users' | 'activity';
+
 export default function UserManagementPage() {
+    const [activeTab, setActiveTab] = useState<TabView>('users');
+    const [globalActivityFilterUser, setGlobalActivityFilterUser] = useState<string>('all');
     const { isManager, isLoading: isRoleLoading } = useRole();
     const { users, addUser, deleteUser } = useProject();
     const { activities, getActivitiesByUser } = useActivity();
@@ -605,6 +619,10 @@ export default function UserManagementPage() {
         ).slice(0, 5);
     };
 
+    const globalFilteredActivities = globalActivityFilterUser === 'all'
+        ? activities
+        : activities.filter((a) => a.userId === globalActivityFilterUser || a.userName === users.find(u => u.id === globalActivityFilterUser)?.name);
+
     if (isRoleLoading) return <div className="p-12 text-center text-slate-500">Loading access rights...</div>;
     if (!isManager) return <AccessDenied />;
 
@@ -625,6 +643,30 @@ export default function UserManagementPage() {
                     <Button onClick={() => setIsCreateOpen(!isCreateOpen)} className={cn("transition-all duration-300", isCreateOpen ? "bg-slate-200 text-slate-700 hover:bg-slate-300" : "bg-blue-600 hover:bg-blue-700 text-white")}>
                         {isCreateOpen ? "Cancel" : <><UserPlus className="h-4 w-4 mr-2" /> Add User</>}
                     </Button>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex border-b border-slate-200 gap-6">
+                    <button
+                        onClick={() => setActiveTab('users')}
+                        className={cn(
+                            "pb-4 font-medium transition-colors relative",
+                            activeTab === 'users' ? "text-blue-600" : "text-slate-500 hover:text-slate-700"
+                        )}
+                    >
+                        Directory
+                        {activeTab === 'users' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('activity')}
+                        className={cn(
+                            "pb-4 font-medium transition-colors relative flex items-center gap-2",
+                            activeTab === 'activity' ? "text-blue-600" : "text-slate-500 hover:text-slate-700"
+                        )}
+                    >
+                        <Activity className="h-4 w-4" /> Global Activity
+                        {activeTab === 'activity' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />}
+                    </button>
                 </div>
 
                 {/* Create User Dialog */}
@@ -769,90 +811,191 @@ export default function UserManagementPage() {
                 </Dialog>
 
 
-                {/* Users List with Activity */}
-                <div className="space-y-4">
-                    {users.map((user) => {
-                        const isEditing = editUserId === user.id;
+                {activeTab === 'users' ? (
+                    <div className="space-y-4">
+                        {users.map((user) => {
+                            const isEditing = editUserId === user.id;
 
-                        return (
-                            <Card key={user.id} className={cn("shadow-sm border-slate-200 transition-all", isEditing && "ring-2 ring-blue-200")}>
-                                <div className="p-4">
-                                    {/* User Row */}
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold">
-                                                {user.name.charAt(0)}
+                            return (
+                                <Card key={user.id} className={cn("shadow-sm border-slate-200 transition-all", isEditing && "ring-2 ring-blue-200")}>
+                                    <div className="p-4">
+                                        {/* User Row */}
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold">
+                                                    {user.name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-slate-900">{user.name}</p>
+                                                    <p className="text-sm text-slate-500">{user.email}</p>
+                                                </div>
+                                                <Badge variant="outline" className={cn(
+                                                    "capitalize font-normal ml-2",
+                                                    user.role === 'manager' && "bg-purple-50 text-purple-700 border-purple-200",
+                                                    user.role === 'developer' && "bg-blue-50 text-blue-700 border-blue-200",
+                                                    user.role === 'leadership' && "bg-amber-50 text-amber-700 border-amber-200",
+                                                    user.role === 'finance' && "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                )}>
+                                                    {user.role === 'manager' && <ShieldAlert className="w-3 h-3 mr-1" />}
+                                                    {user.role === 'developer' && <UserIcon className="w-3 h-3 mr-1" />}
+                                                    {user.role === 'leadership' && <Shield className="w-3 h-3 mr-1" />}
+                                                    {user.role === 'finance' && <span className="w-3 h-3 mr-1 inline-flex items-center">$</span>}
+                                                    {user.role === 'finance' ? 'Finance' : user.role}
+                                                </Badge>
                                             </div>
-                                            <div>
-                                                <p className="font-semibold text-slate-900">{user.name}</p>
-                                                <p className="text-sm text-slate-500">{user.email}</p>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setActivityUserId(user.id)}
+                                                    className="text-slate-500"
+                                                >
+                                                    <Activity className="h-4 w-4 mr-1" />
+                                                    Activity
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => toggleEdit(user.id)}
+                                                    className="text-slate-500"
+                                                >
+                                                    <Settings className="h-4 w-4 mr-1" />
+                                                    Settings
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                    onClick={() => handleDeleteUser(user.id)}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
                                             </div>
-                                            <Badge variant="outline" className={cn(
-                                                "capitalize font-normal ml-2",
-                                                user.role === 'manager' && "bg-purple-50 text-purple-700 border-purple-200",
-                                                user.role === 'developer' && "bg-blue-50 text-blue-700 border-blue-200",
-                                                user.role === 'leadership' && "bg-amber-50 text-amber-700 border-amber-200",
-                                                user.role === 'finance' && "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                            )}>
-                                                {user.role === 'manager' && <ShieldAlert className="w-3 h-3 mr-1" />}
-                                                {user.role === 'developer' && <UserIcon className="w-3 h-3 mr-1" />}
-                                                {user.role === 'leadership' && <Shield className="w-3 h-3 mr-1" />}
-                                                {user.role === 'finance' && <span className="w-3 h-3 mr-1 inline-flex items-center">$</span>}
-                                                {user.role === 'finance' ? 'Finance' : user.role}
-                                            </Badge>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => setActivityUserId(user.id)}
-                                                className="text-slate-500"
-                                            >
-                                                <Activity className="h-4 w-4 mr-1" />
-                                                Activity
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => toggleEdit(user.id)}
-                                                className="text-slate-500"
-                                            >
-                                                <Settings className="h-4 w-4 mr-1" />
-                                                Settings
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                                onClick={() => handleDeleteUser(user.id)}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
+
+                                        {/* Edit User Modal */}
+                                        {isEditing && (
+                                            <UserEditModal
+                                                user={user}
+                                                isOpen={true}
+                                                onClose={() => setEditUserId(null)}
+                                            />
+                                        )}
+
+                                        {/* Activity Modal */}
+                                        {activityUserId === user.id && (
+                                            <UserActivityModal
+                                                user={user}
+                                                isOpen={true}
+                                                onClose={() => setActivityUserId(null)}
+                                            />
+                                        )}
                                     </div>
-
-                                    {/* Edit User Modal */}
-                                    {isEditing && (
-                                        <UserEditModal
-                                            user={user}
-                                            isOpen={true}
-                                            onClose={() => setEditUserId(null)}
-                                        />
-                                    )}
-
-                                    {/* Activity Modal */}
-                                    {activityUserId === user.id && (
-                                        <UserActivityModal
-                                            user={user}
-                                            isOpen={true}
-                                            onClose={() => setActivityUserId(null)}
-                                        />
+                                </Card>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Recent System Activity</h2>
+                                <p className="text-sm text-slate-500">A timeline of all recorded actions across the platform.</p>
+                            </div>
+                            <select
+                                className="flex h-10 w-full sm:w-64 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                value={globalActivityFilterUser}
+                                onChange={(e) => setGlobalActivityFilterUser(e.target.value)}
+                            >
+                                <option value="all">All Users</option>
+                                {users.map((user) => (
+                                    <option key={user.id} value={user.id}>{user.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                            {globalFilteredActivities.length === 0 ? (
+                                <div className="text-center py-12 text-slate-500">
+                                    <Activity className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                                    <p className="font-medium">No activity to display</p>
+                                    {globalActivityFilterUser !== 'all' && (
+                                        <p className="text-sm text-slate-400 mt-1">Try selecting a different user</p>
                                     )}
                                 </div>
-                            </Card>
-                        );
-                    })}
-                </div>
+                            ) : (
+                                // Render all activities directly
+                                globalFilteredActivities.map((activity) => {
+                                    const renderDetailValue = (val: unknown): React.ReactNode => {
+                                        if (typeof val === 'string' || typeof val === 'number') return val;
+                                        return JSON.stringify(val);
+                                    };
+
+                                    return (
+                                        <div key={activity.id} className="p-4 hover:bg-slate-50 transition-colors flex gap-4">
+                                            <div className="flex-shrink-0 mt-1">
+                                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                                    {activity.action.includes('TIMESHEET') ? (
+                                                        <Clock className="h-5 w-5 text-blue-600" />
+                                                    ) : activity.action.includes('LOGIN') ? (
+                                                        <UserIcon className="h-5 w-5 text-green-600" />
+                                                    ) : activity.action.includes('LOGOUT') ? (
+                                                        <UserIcon className="h-5 w-5 text-slate-600" />
+                                                    ) : (
+                                                        <Activity className="h-5 w-5 text-blue-600" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 min-w-0 flex items-start justify-between gap-4">
+                                                <div>
+                                                    <p className="text-sm font-medium text-slate-900">
+                                                        <span className="font-semibold">{activity.userName}</span> {formatAction(activity.action).toLowerCase()}
+                                                    </p>
+                                                    {activity.targetName && (
+                                                        <p className="text-sm text-slate-600 mt-0.5">
+                                                            {activity.targetName}
+                                                        </p>
+                                                    )}
+                                                    {activity.details && Object.keys(activity.details).length > 0 && (
+                                                        <div className="text-xs text-slate-500 mt-1 space-y-0.5">
+                                                            {!!activity.details?.hours && (
+                                                                <p>Hours: {renderDetailValue(activity.details.hours)}</p>
+                                                            )}
+                                                            {!!activity.details?.workType && (
+                                                                <p>Type: {renderDetailValue(activity.details.workType)}</p>
+                                                            )}
+                                                            {!!activity.details?.oldStatus && !!activity.details?.newStatus && (
+                                                                <p>
+                                                                    {renderDetailValue(activity.details.oldStatus)} → {renderDetailValue(activity.details.newStatus)}
+                                                                </p>
+                                                            )}
+                                                            {(() => {
+                                                                if (!activity.details?.changes) return null;
+                                                                const changesObj = activity.details.changes as Record<string, { old: unknown, new: unknown }>;
+                                                                return Object.keys(changesObj).map((field) => {
+                                                                    const detailVals = changesObj[field];
+                                                                    return (
+                                                                        <p key={field} className="capitalize">
+                                                                            {field.replace(/([A-Z])/g, ' $1').trim()}:{' '}
+                                                                            <span className="line-through text-slate-400 mr-1">{renderDetailValue(detailVals?.old)}</span>
+                                                                            <span className="text-slate-700">→ {renderDetailValue(detailVals?.new)}</span>
+                                                                        </p>
+                                                                    );
+                                                                });
+                                                            })()}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <span className="text-xs text-slate-500 whitespace-nowrap">
+                                                    {formatRelativeTime(activity.timestamp)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                )}
 
             </div>
         </div>

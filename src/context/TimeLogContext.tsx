@@ -3,13 +3,14 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { TimeLog } from "@/types";
 import { useAuth } from "./AuthContext";
-import { getTimeLogs, submitTimeLog, updateLogStatus as updateLogStatusAction } from "@/lib/actions/timesheet";
+import { getTimeLogs, submitTimeLog, updateLogStatus as updateLogStatusAction, deleteTimeLog as deleteLogAction } from "@/lib/actions/timesheet";
 
 interface TimeLogContextType {
     logs: TimeLog[];
     addLog: (log: Omit<TimeLog, "id" | "createdAt" | "updatedAt" | "status">) => Promise<void>;
     updateLogStatus: (id: string, status: TimeLog['status'], comment?: string) => Promise<void>;
     getLogsByUser: (userId: string) => TimeLog[];
+    deleteLog: (id: string) => Promise<void>;
     isLoading: boolean;
     refreshLogs: () => Promise<void>;
 }
@@ -81,12 +82,26 @@ export function TimeLogProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const deleteLog = async (id: string) => {
+        setIsLoading(true);
+        try {
+            await deleteLogAction(id);
+            // Optimistic update
+            setLogs(prev => prev.filter(log => log.id !== id));
+        } catch (error) {
+            console.error("Failed to delete log:", error);
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const getLogsByUser = (userId: string) => {
         return logs.filter(log => log.userId === userId);
     };
 
     return (
-        <TimeLogContext.Provider value={{ logs, addLog, updateLogStatus, getLogsByUser, isLoading, refreshLogs }}>
+        <TimeLogContext.Provider value={{ logs, addLog, updateLogStatus, getLogsByUser, deleteLog, isLoading, refreshLogs }}>
             {children}
         </TimeLogContext.Provider>
     );

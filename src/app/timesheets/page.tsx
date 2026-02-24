@@ -11,16 +11,45 @@ import { Dialog, DialogContent } from "@/components/ui/Dialog";
 import { LiveTimer } from "@/components/timesheets/LiveTimer";
 import { TimesheetInsights } from "@/components/timesheets/TimesheetInsights";
 import { TimeLog } from "@/types";
-import { Plus, History as HistoryIcon, Clock, FileSpreadsheet, Zap } from "lucide-react";
+import { Plus, History as HistoryIcon, Clock, FileSpreadsheet, Zap, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { useMemo } from "react";
+import { cn } from "@/lib/utils";
 
 export default function TimesheetsPage() {
+    const today = new Date();
     const { user } = useAuth();
-    const { getLogsByUser } = useTimeLog();
+    const { getLogsByUser, deleteLog } = useTimeLog();
     const [isFormOpen, setIsFormOpen] = useState(false);
 
+    // Filtering State
+    const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
+    const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+    const [viewPeriod, setViewPeriod] = useState<'all' | 'p1' | 'p2' | 'all_time'>('all');
+
     const userLogs = user ? getLogsByUser(user.id) : [];
-    const totalHours = userLogs.reduce((sum, log) => sum + (log.status === 'approved' ? log.hours : 0), 0);
-    const pendingHours = userLogs.reduce((sum, log) => sum + (log.status === 'pending' ? log.hours : 0), 0);
+
+    // Filtering Logic
+    const filteredLogs = useMemo(() => {
+        if (viewPeriod === 'all_time') return userLogs;
+
+        return userLogs.filter(log => {
+            const logDate = new Date(log.date);
+            const isSameMonth = logDate.getMonth() === selectedMonth && logDate.getFullYear() === selectedYear;
+
+            if (!isSameMonth) return false;
+
+            if (viewPeriod === 'p1') {
+                return logDate.getDate() <= 15;
+            } else if (viewPeriod === 'p2') {
+                return logDate.getDate() >= 16;
+            }
+
+            return true;
+        });
+    }, [userLogs, selectedMonth, selectedYear, viewPeriod]);
+
+    const totalHours = filteredLogs.reduce((sum, log) => sum + (log.status === 'approved' ? log.hours : 0), 0);
+    const pendingHours = filteredLogs.reduce((sum, log) => sum + (log.status === 'pending' ? log.hours : 0), 0);
 
     return (
         <div className="bg-slate-50/50 min-h-screen p-8 lg:p-12">
@@ -97,13 +126,78 @@ export default function TimesheetsPage() {
                     {/* Left Column: Logs */}
                     <div className="lg:col-span-2 space-y-6">
                         <Card className="border-none shadow-sm bg-white">
-                            <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-slate-50">
-                                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                                    <HistoryIcon className="h-5 w-5 text-slate-400" /> Recent Activity
-                                </CardTitle>
+                            <CardHeader className="flex flex-col space-y-4 pb-4 border-b border-slate-50">
+                                <div className="flex flex-row items-center justify-between">
+                                    <CardTitle className="text-lg font-bold flex items-center gap-2">
+                                        <HistoryIcon className="h-5 w-5 text-slate-400" /> Recent Activity
+                                    </CardTitle>
+
+                                    <div className="flex items-center gap-2 bg-slate-100/50 p-1 rounded-xl border border-slate-200">
+                                        {(['all', 'p1', 'p2', 'all_time'] as const).map((p) => (
+                                            <button
+                                                key={p}
+                                                onClick={() => setViewPeriod(p)}
+                                                className={cn(
+                                                    "px-3 py-1.5 text-xs font-bold rounded-lg transition-all",
+                                                    viewPeriod === p
+                                                        ? "bg-white text-blue-600 shadow-sm"
+                                                        : "text-slate-500 hover:text-slate-700"
+                                                )}
+                                            >
+                                                {p === 'all' ? 'Month' : p === 'all_time' ? 'All Time' : p.toUpperCase()}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-white rounded-lg shadow-sm">
+                                            <Calendar className="h-4 w-4 text-slate-400" />
+                                        </div>
+                                        <span className="text-sm font-bold text-slate-700">
+                                            {new Date(selectedYear, selectedMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0"
+                                            onClick={() => {
+                                                if (selectedMonth === 0) {
+                                                    setSelectedMonth(11);
+                                                    setSelectedYear(prev => prev - 1);
+                                                } else {
+                                                    setSelectedMonth(prev => prev - 1);
+                                                }
+                                            }}
+                                        >
+                                            <ChevronLeft className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0"
+                                            onClick={() => {
+                                                if (selectedMonth === 11) {
+                                                    setSelectedMonth(0);
+                                                    setSelectedYear(prev => prev + 1);
+                                                } else {
+                                                    setSelectedMonth(prev => prev + 1);
+                                                }
+                                            }}
+                                        >
+                                            <ChevronRight className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
                             </CardHeader>
                             <CardContent className="pt-6">
-                                <TimeLogTable logs={userLogs} />
+                                <TimeLogTable
+                                    logs={filteredLogs}
+                                    onDelete={(id) => deleteLog(id)}
+                                />
                             </CardContent>
                         </Card>
                     </div>

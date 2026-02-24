@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import Image from "next/image";
 
 interface NavItemProps {
     href: string;
@@ -86,18 +87,15 @@ export default function Sidebar() {
         <aside className="fixed left-0 top-0 h-screen w-72 bg-slate-900 text-slate-200 flex flex-col border-r border-slate-800 z-[60]">
             {/* Header / Brand */}
             <div className="p-6">
-                <div className="mb-6 px-1 flex items-center gap-3">
-                    {/* Minimalist Accent Logo */}
-                    <div className="h-8 w-1.5 bg-blue-600 rounded-full shadow-[0_0_10px_rgba(37,99,235,0.5)]"></div>
-
-                    <div>
-                        <h1 className="text-lg font-bold text-white tracking-tight leading-none">
-                            JobProMax
-                        </h1>
-                        <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mt-0.5">
-                            Progress Hub
-                        </p>
-                    </div>
+                <div className="mb-2 px-1 flex items-center justify-center">
+                    <Image
+                        src="https://jpm-public-storage.nyc3.cdn.digitaloceanspaces.com/website/FinalPoweredbyTJH%20v10%20white%20transparent.png"
+                        alt="JobProMax Logo"
+                        width={200}
+                        height={64}
+                        priority
+                        className="max-h-16 w-auto object-contain"
+                    />
                 </div>
             </div>
 
@@ -127,6 +125,23 @@ export default function Sidebar() {
                                 label="Feature Status"
                                 icon={CheckCircle2}
                                 isActive={pathname === '/status'}
+                                disabled={user?.email !== 'manager@example.com'}
+                                comingSoon={user?.email !== 'manager@example.com'}
+                            />
+                        </div>
+                    )}
+
+                    {/* Operations Section (Developer, Manager, Finance) */}
+                    {(role === 'developer' || role === 'manager' || role === 'finance') && (
+                        <div className="space-y-1 animate-in slide-in-from-left-4 fade-in duration-500">
+                            <div className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <Clock className="h-3 w-3" /> Operations
+                            </div>
+                            <NavItem
+                                href="/timesheets"
+                                label="Timesheet Log"
+                                icon={Clock}
+                                isActive={pathname === '/timesheets'}
                             />
                         </div>
                     )}

@@ -6,13 +6,21 @@ import { useRole } from "@/context/RoleContext";
 import { Badge } from "@/components/ui/Badge";
 import { Activity, ShieldCheck } from "lucide-react";
 import FeatureCard from "@/components/features/FeatureCard";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export default function StatusPage() {
     const { features, isLoading } = useProject();
-    const { isManager } = useRole();
+    const { isManager, user } = useRole();
+    const router = useRouter();
     const [filter, setFilter] = useState<'all' | 'operational' | 'degraded' | 'critical'>('all');
+
+    useEffect(() => {
+        if (user && user.email !== 'manager@example.com') {
+            router.push('/dashboard');
+        }
+    }, [user, router]);
 
     const filteredFeatures = features.filter(f => filter === 'all' || f.status === filter);
 

@@ -24,7 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 export default function ManagerTimesheetsPage() {
     const { isManager, isLoading: isRoleLoading } = useRole();
-    const { logs, updateLogStatus } = useTimeLog();
+    const { logs, updateLogStatus, deleteLog } = useTimeLog();
     const { users, updateUser, refreshData } = useProject();
     const router = useRouter(); // Using router for navigation
 
@@ -466,6 +466,7 @@ export default function ManagerTimesheetsPage() {
                             <TimeLogTable
                                 logs={pendingLogs}
                                 showApprovalActions={true}
+                                onDelete={(id) => deleteLog(id)}
                                 onApprove={(id) => updateLogStatus(id, 'approved')}
                                 onReject={(id, comment) => updateLogStatus(id, 'rejected', comment)}
                             />
@@ -810,6 +811,7 @@ export default function ManagerTimesheetsPage() {
                             <TimeLogTable
                                 logs={selectedDevLogs}
                                 showApprovalActions={true}
+                                onDelete={(id) => deleteLog(id)}
                                 onApprove={(id) => updateLogStatus(id, 'approved')}
                                 onReject={(id, comment) => updateLogStatus(id, 'rejected', comment)}
                             />

@@ -5,6 +5,10 @@ import connectDB from '../mongodb';
 import User from '@/models/User';
 import { User as UserType } from '@/types';
 import bcrypt from 'bcryptjs';
+import { createActivity } from '../activityActions';
+import TimeLog from '@/models/TimeLog';
+import ActivityLog from '@/models/ActivityLog';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Get all users
@@ -89,13 +93,15 @@ export async function updateUserProfile(
 
     console.log('[updateUserProfile] Applying updates:', updateFields);
 
+    const oldUser = await User.findById(userId).select('-passwordHash');
+
     const user = await User.findByIdAndUpdate(
         userId,
         { $set: updateFields },
         { new: true, runValidators: true }
     ).select('-passwordHash');
 
-    if (!user) {
+    if (!user || !oldUser) {
         throw new Error('User not found');
     }
 
@@ -105,6 +111,34 @@ export async function updateUserProfile(
         department: user.department,
         dailyHoursTarget: user.dailyHoursTarget
     });
+
+    const changedFields: Record<string, { old: any, new: any }> = {};
+    for (const key of Object.keys(updateFields)) {
+        const o = oldUser as any;
+        const u = user as any;
+
+        if (o[key] !== u[key]) {
+            changedFields[key] = {
+                old: o[key],
+                new: u[key]
+            };
+        }
+    }
+
+
+    try {
+        await createActivity({
+            action: 'USER_SETTINGS_UPDATED',
+            targetType: 'user',
+            targetId: user._id.toString(),
+            targetName: user.name,
+            details: {
+                changes: changedFields
+            }
+        });
+    } catch (e) {
+        console.error('Failed to log activity', e);
+    }
 
     return {
         id: user._id.toString(),
@@ -159,6 +193,18 @@ export async function createUser(data: {
         dailyHoursTarget: data.dailyHoursTarget || 8,
     });
 
+    try {
+        await createActivity({
+            action: 'USER_CREATED',
+            targetType: 'user',
+            targetId: newUser._id.toString(),
+            targetName: newUser.name,
+            details: { role: newUser.role }
+        });
+    } catch (e) {
+        console.error('Failed to log activity', e);
+    }
+
     return {
         id: newUser._id.toString(),
         name: newUser.name,
@@ -188,6 +234,29 @@ export async function deleteUser(userId: string): Promise<void> {
     if (!result) {
         throw new Error('User not found');
     }
+
+    // Cascade Delete: Remove all timesheets and activity logs tied to this user
+    await TimeLog.deleteMany({ userId });
+    await ActivityLog.deleteMany({
+        $or: [{ userId }, { targetId: userId }]
+    });
+
+    try {
+        await createActivity({
+            action: 'USER_DELETED',
+            targetType: 'user',
+            targetId: userId,
+            targetName: result.name,
+            details: { role: result.role }
+        });
+    } catch (e) {
+        console.error('Failed to log activity', e);
+    }
+
+    // Invalidate caches
+    revalidatePath('/manager/users');
+    revalidatePath('/manager/timesheets');
+    revalidatePath('/dashboard');
 }
 
 /**
@@ -305,4 +374,19 @@ export async function changeUserPassword(
     await User.findByIdAndUpdate(userId, { $set: { passwordHash } });
 
     console.log(`[changeUserPassword] Password updated for user: ${userId}${isForced ? ' (Forced)' : ''}`);
+
+    try {
+        const user = await User.findById(userId);
+        if (user) {
+            await createActivity({
+                action: 'PASSWORD_CHANGED',
+                targetType: 'user',
+                targetId: userId,
+                targetName: user.name,
+                details: { isForced }
+            });
+        }
+    } catch (e) {
+        console.error('Failed to log activity', e);
+    }
 }

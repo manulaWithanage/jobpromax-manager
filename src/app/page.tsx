@@ -32,10 +32,12 @@ export default function LoginPage() {
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 {/* Logo and Title */}
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-slate-900 mb-2">JobProMax</h1>
-                    <p className="text-slate-600 uppercase tracking-wider text-sm font-medium">Progress Hub</p>
-                    <div className="w-16 h-1 bg-blue-500 mx-auto mt-4 rounded-full"></div>
+                <div className="flex flex-col items-center mb-8">
+                    <img
+                        src="https://jpm-public-storage.nyc3.cdn.digitaloceanspaces.com/website/FinalPoweredbyTJH%20v10.png"
+                        alt="JobProMax Logo"
+                        className="max-w-[280px] w-full h-auto object-contain"
+                    />
                 </div>
 
                 {/* Login Card */}
