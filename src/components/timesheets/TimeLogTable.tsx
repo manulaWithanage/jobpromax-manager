@@ -4,7 +4,7 @@ import { TimeLog } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
-import { CheckCircle2, XCircle, Clock, ExternalLink, MessageSquare, User as UserIcon, Trash2 } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ExternalLink, MessageSquare, User as UserIcon, Trash2, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { DeleteConfirmationModal } from "@/components/ui/DeleteConfirmationModal";
@@ -15,6 +15,7 @@ interface TimeLogTableProps {
     onApprove?: (id: string) => void;
     onReject?: (id: string, comment: string) => void;
     onDelete?: (id: string) => void;
+    onEdit?: (log: TimeLog) => void;
 }
 
 export function TimeLogTable({
@@ -22,7 +23,8 @@ export function TimeLogTable({
     showApprovalActions = false,
     onApprove,
     onReject,
-    onDelete
+    onDelete,
+    onEdit
 }: TimeLogTableProps) {
     const [logToDelete, setLogToDelete] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -63,7 +65,7 @@ export function TimeLogTable({
                         <TableHead className="w-[100px]">Ticket</TableHead>
                         <TableHead className="w-[80px] text-center">Hours</TableHead>
                         <TableHead className="w-[120px]">Status</TableHead>
-                        {(showApprovalActions || onDelete) && <TableHead className="text-right">Actions</TableHead>}
+                        {(showApprovalActions || onDelete || onEdit) && <TableHead className="text-right">Actions</TableHead>}
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -135,9 +137,20 @@ export function TimeLogTable({
                                 <TableCell>
                                     {getStatusBadge(log.status)}
                                 </TableCell>
-                                {(showApprovalActions || (onDelete && log.status === 'pending')) && (
+                                {(showApprovalActions || ((onDelete || onEdit) && log.status === 'pending')) && (
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
+                                            {onEdit && log.status === 'pending' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 h-8 w-8 p-0 transition-colors"
+                                                    onClick={() => onEdit(log)}
+                                                    title="Edit Log"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </Button>
+                                            )}
                                             {onDelete && (showApprovalActions || log.status === 'pending') && (
                                                 <Button
                                                     size="sm"

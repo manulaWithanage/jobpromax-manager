@@ -29,6 +29,7 @@ export default function ManagerTimesheetsPage() {
     const router = useRouter(); // Using router for navigation
 
     const [isManualEntryOpen, setIsManualEntryOpen] = useState(false);
+    const [editingLog, setEditingLog] = useState<any | null>(null);
     const [selectedDevId, setSelectedDevId] = useState<string | null>(null);
     const [showDevSettings, setShowDevSettings] = useState(false);
 
@@ -462,6 +463,7 @@ export default function ManagerTimesheetsPage() {
                                 logs={pendingLogs}
                                 showApprovalActions={true}
                                 onDelete={(id) => deleteLog(id)}
+                                onEdit={(log) => setEditingLog(log)}
                                 onApprove={(id) => updateLogStatus(id, 'approved')}
                                 onReject={(id, comment) => updateLogStatus(id, 'rejected', comment)}
                             />
@@ -821,6 +823,7 @@ export default function ManagerTimesheetsPage() {
                                 logs={selectedDevLogs}
                                 showApprovalActions={true}
                                 onDelete={(id) => deleteLog(id)}
+                                onEdit={(log) => setEditingLog(log)}
                                 onApprove={(id) => updateLogStatus(id, 'approved')}
                                 onReject={(id, comment) => updateLogStatus(id, 'rejected', comment)}
                             />
@@ -830,13 +833,24 @@ export default function ManagerTimesheetsPage() {
                 )}
             </div>
 
-            {/* Popup Modal for Manual Entry (Global) */}
-            <Dialog open={isManualEntryOpen} onOpenChange={setIsManualEntryOpen}>
-                <DialogContent className="sm:max-w-[500px] p-0 border-none bg-transparent rounded-2xl overflow-hidden shadow-2xl">
+            {/* Popup Modal for Manual Entry & Editing (Global) */}
+            <Dialog open={isManualEntryOpen || !!editingLog} onOpenChange={(open) => {
+                if (!open) {
+                    setIsManualEntryOpen(false);
+                    setEditingLog(null);
+                } else {
+                    setIsManualEntryOpen(true);
+                }
+            }}>
+                <DialogContent className="sm:max-w-[700px] p-0 border-none bg-transparent rounded-2xl overflow-hidden shadow-2xl">
                     <TimeEntryForm
                         showDeveloperSelect={true}
                         defaultDeveloperId={selectedDevId || undefined}
-                        onSuccess={() => setIsManualEntryOpen(false)}
+                        initialData={editingLog || undefined}
+                        onSuccess={() => {
+                            setIsManualEntryOpen(false);
+                            setEditingLog(null);
+                        }}
                     />
                 </DialogContent>
             </Dialog>

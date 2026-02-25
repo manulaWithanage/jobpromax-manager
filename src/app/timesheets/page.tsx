@@ -20,6 +20,7 @@ export default function TimesheetsPage() {
     const { user } = useAuth();
     const { getLogsByUser, deleteLog } = useTimeLog();
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [editingLog, setEditingLog] = useState<TimeLog | null>(null);
 
     // Filtering State
     const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
@@ -75,9 +76,22 @@ export default function TimesheetsPage() {
                 </div>
 
                 {/* Popup Modal */}
-                <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+                <Dialog open={isFormOpen || !!editingLog} onOpenChange={(open) => {
+                    if (!open) {
+                        setIsFormOpen(false);
+                        setEditingLog(null);
+                    } else {
+                        setIsFormOpen(true);
+                    }
+                }}>
                     <DialogContent className="sm:min-w-[700px] sm:max-w-[900px] p-0 border-none bg-transparent">
-                        <TimeEntryForm onSuccess={() => setIsFormOpen(false)} />
+                        <TimeEntryForm
+                            initialData={editingLog || undefined}
+                            onSuccess={() => {
+                                setIsFormOpen(false);
+                                setEditingLog(null);
+                            }}
+                        />
                     </DialogContent>
                 </Dialog>
 
@@ -197,6 +211,7 @@ export default function TimesheetsPage() {
                                 <TimeLogTable
                                     logs={filteredLogs}
                                     onDelete={(id) => deleteLog(id)}
+                                    onEdit={(log) => setEditingLog(log)}
                                 />
                             </CardContent>
                         </Card>

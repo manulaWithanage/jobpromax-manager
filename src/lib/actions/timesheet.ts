@@ -117,6 +117,82 @@ export async function submitTimeLog(data: {
 }
 
 /**
+ * Update an existing pending time log entry
+ * Authorization: Developer (own log) or Manager
+ */
+export async function updateTimeLog(
+    logId: string,
+    data: {
+        date: string;
+        hours: number;
+        summary: string;
+        jiraTickets: string[];
+        workType: 'feature' | 'bug' | 'refactor' | 'testing' | 'documentation' | 'planning' | 'review' | 'meeting' | 'content' | 'campaign' | 'analytics' | 'other';
+    }
+): Promise<TimeLogType> {
+    const user = await requireRole(['developer', 'manager']);
+    await connectDB();
+
+    // Validate input
+    if (!data.date || !data.hours || !data.summary) {
+        throw new Error('Required fields are missing');
+    }
+
+    if (data.hours <= 0 || data.hours > 24) {
+        throw new Error('Hours must be between 0 and 24');
+    }
+
+    const log = await TimeLog.findById(logId);
+    if (!log) {
+        throw new Error('Time log not found');
+    }
+
+    // Security checks
+    if (user.role === 'developer' && log.userId !== user.id) {
+        throw new Error('You can only edit your own time logs');
+    }
+
+    if (log.status !== 'pending') {
+        throw new Error('You can only edit logs that are pending approval');
+    }
+
+    log.date = data.date;
+    log.hours = data.hours;
+    log.summary = data.summary;
+    log.jiraTickets = data.jiraTickets || [];
+    log.workType = data.workType;
+
+    await log.save();
+
+    await createActivity({
+        action: 'TIMESHEET_ENTRY_UPDATED',
+        targetType: 'timesheet',
+        targetId: log._id.toString(),
+        targetName: `${log.userName}'s log on ${log.date}`,
+        details: {
+            hours: log.hours,
+            workType: log.workType,
+            tickets: log.jiraTickets.join(", "),
+        }
+    });
+
+    return {
+        id: log._id.toString(),
+        userId: log.userId,
+        userName: log.userName,
+        userRole: log.userRole,
+        date: log.date,
+        hours: log.hours,
+        summary: log.summary,
+        jiraTickets: log.jiraTickets,
+        workType: log.workType,
+        status: log.status,
+        createdAt: log.createdAt.toISOString(),
+        updatedAt: log.updatedAt.toISOString(),
+    };
+}
+
+/**
  * Update time log status (approve/reject)
  * Authorization: Manager role only
  */

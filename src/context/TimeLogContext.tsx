@@ -3,11 +3,12 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { TimeLog } from "@/types";
 import { useAuth } from "./AuthContext";
-import { getTimeLogs, submitTimeLog, updateLogStatus as updateLogStatusAction, deleteTimeLog as deleteLogAction } from "@/lib/actions/timesheet";
+import { getTimeLogs, submitTimeLog, updateLogStatus as updateLogStatusAction, deleteTimeLog as deleteLogAction, updateTimeLog as updateLogAction } from "@/lib/actions/timesheet";
 
 interface TimeLogContextType {
     logs: TimeLog[];
     addLog: (log: Omit<TimeLog, "id" | "createdAt" | "updatedAt" | "status">) => Promise<void>;
+    updateLog: (id: string, log: Pick<TimeLog, "date" | "hours" | "summary" | "jiraTickets" | "workType">) => Promise<void>;
     updateLogStatus: (id: string, status: TimeLog['status'], comment?: string) => Promise<void>;
     getLogsByUser: (userId: string) => TimeLog[];
     deleteLog: (id: string) => Promise<void>;
@@ -63,6 +64,29 @@ export function TimeLogProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const updateLog = async (id: string, logData: Pick<TimeLog, "date" | "hours" | "summary" | "jiraTickets" | "workType">) => {
+        setIsLoading(true);
+        try {
+            const updatedLog = await updateLogAction(id, {
+                date: logData.date,
+                hours: logData.hours,
+                summary: logData.summary,
+                jiraTickets: logData.jiraTickets || [],
+                workType: (logData as any).workType || 'other',
+            });
+
+            // Optimistic update
+            setLogs(prev => prev.map(log =>
+                log.id === id ? updatedLog : log
+            ));
+        } catch (error) {
+            console.error("Failed to update log:", error);
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const updateLogStatus = async (id: string, status: TimeLog['status'], comment?: string) => {
         if (status === 'pending') return; // Cannot set status back to pending via this action
 
@@ -101,7 +125,7 @@ export function TimeLogProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <TimeLogContext.Provider value={{ logs, addLog, updateLogStatus, getLogsByUser, deleteLog, isLoading, refreshLogs }}>
+        <TimeLogContext.Provider value={{ logs, addLog, updateLog, updateLogStatus, getLogsByUser, deleteLog, isLoading, refreshLogs }}>
             {children}
         </TimeLogContext.Provider>
     );

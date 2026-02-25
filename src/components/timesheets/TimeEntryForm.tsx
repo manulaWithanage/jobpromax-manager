@@ -11,39 +11,46 @@ import { Label } from "@/components/ui/Label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Clock, Ticket, FileText, Send, Loader2, User as UserIcon, Briefcase, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TimeLog } from "@/types";
 
 interface TimeEntryFormProps {
     onSuccess?: () => void;
     showDeveloperSelect?: boolean;
     defaultDeveloperId?: string;
+    initialData?: TimeLog;
 }
 
-export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultDeveloperId }: TimeEntryFormProps) {
+export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultDeveloperId, initialData }: TimeEntryFormProps) {
     const { user: currentUser } = useAuth();
     const { users } = useProject();
-    const { addLog, isLoading } = useTimeLog();
+    const { addLog, updateLog, isLoading } = useTimeLog();
     const { addActivity } = useActivity();
 
     // Filter to only show developers for selection
     const developers = users.filter(u => u.role === 'developer');
 
     const [formData, setFormData] = useState({
-        userId: currentUser?.id || "guest",
-        userName: currentUser?.name || "Guest",
-        userRole: (currentUser?.role as "manager" | "developer" | "leadership") || "developer",
-        userDepartment: (currentUser as any)?.department || "",
-        userDepartments: (currentUser as any)?.departments || ((currentUser as any)?.department ? [(currentUser as any).department] : []),
-        date: new Date().toISOString().split('T')[0],
-        hours: "",
-        summary: "",
-        jiraTickets: [] as string[],
-        workType: "feature" as any
+        userId: initialData?.userId || currentUser?.id || "guest",
+        userName: initialData?.userName || currentUser?.name || "Guest",
+        userRole: initialData?.userRole || (currentUser?.role as "manager" | "developer" | "leadership") || "developer",
+        userDepartment: initialData ? "" : ((currentUser as any)?.department || ""),
+        userDepartments: initialData ? [] : ((currentUser as any)?.departments || ((currentUser as any)?.department ? [(currentUser as any).department] : [])),
+        date: initialData ? initialData.date : new Date().toISOString().split('T')[0],
+        hours: initialData ? initialData.hours.toString() : "",
+        summary: initialData ? initialData.summary : "",
+        jiraTickets: initialData ? (initialData.jiraTickets || []) : [] as string[],
+        workType: initialData ? initialData.workType : "feature" as any
     });
 
     const [ticketInput, setTicketInput] = useState("");
 
-    // Update form if user or developers change
+    // Identify edit mode
+    const isEditMode = !!initialData;
+
+    // Update form if user or developers change (only if not in edit mode)
     useEffect(() => {
+        if (isEditMode) return;
+
         if (!showDeveloperSelect && currentUser) {
             setFormData(prev => ({
                 ...prev,
@@ -66,7 +73,7 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
                 }));
             }
         }
-    }, [currentUser, showDeveloperSelect, defaultDeveloperId, users]);
+    }, [currentUser, showDeveloperSelect, defaultDeveloperId, users, isEditMode]);
 
     // Listen for timer and template application
     useEffect(() => {
@@ -295,39 +302,51 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
         }
 
         try {
-            await addLog({
-                userId: formData.userId,
-                userName: formData.userName,
-                userRole: formData.userRole,
-                date: formData.date,
-                hours: hoursNum,
-                summary: formData.summary,
-                jiraTickets: formData.jiraTickets,
-                workType: formData.workType,
-            });
-
-            // Log activity for time entry creation
-            await addActivity({
-                action: "TIMESHEET_ENTRY_CREATED",
-                targetType: "timesheet",
-                targetName: formData.summary.substring(0, 50) + (formData.summary.length > 50 ? "..." : ""),
-                details: {
-                    hours: hoursNum,
+            if (isEditMode && initialData) {
+                await updateLog(initialData.id, {
                     date: formData.date,
+                    hours: hoursNum,
+                    summary: formData.summary,
+                    jiraTickets: formData.jiraTickets,
                     workType: formData.workType,
-                    tickets: formData.jiraTickets.join(", "),
-                },
-            });
+                });
+            } else {
+                await addLog({
+                    userId: formData.userId,
+                    userName: formData.userName,
+                    userRole: formData.userRole,
+                    date: formData.date,
+                    hours: hoursNum,
+                    summary: formData.summary,
+                    jiraTickets: formData.jiraTickets,
+                    workType: formData.workType,
+                });
 
-            setFormData({
-                ...formData,
-                date: new Date().toISOString().split('T')[0],
-                hours: "",
-                summary: "",
-                jiraTickets: [],
-                workType: "feature"
-            });
-            setTicketInput("");
+                // Log activity only for new time entry creation (update logs its own activity)
+                await addActivity({
+                    action: "TIMESHEET_ENTRY_CREATED",
+                    targetType: "timesheet",
+                    targetName: formData.summary.substring(0, 50) + (formData.summary.length > 50 ? "..." : ""),
+                    details: {
+                        hours: hoursNum,
+                        date: formData.date,
+                        workType: formData.workType,
+                        tickets: formData.jiraTickets.join(", "),
+                    },
+                });
+            }
+
+            if (!isEditMode) {
+                setFormData({
+                    ...formData,
+                    date: new Date().toISOString().split('T')[0],
+                    hours: "",
+                    summary: "",
+                    jiraTickets: [],
+                    workType: "feature"
+                });
+                setTicketInput("");
+            }
 
             if (onSuccess) onSuccess();
         } catch (err) {
@@ -339,10 +358,10 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
         <Card className="border-blue-100 shadow-lg bg-white overflow-hidden w-full">
             <CardHeader className="bg-slate-50/50 border-b border-slate-100">
                 <CardTitle className="text-xl font-bold flex items-center gap-2 text-slate-900">
-                    <Clock className="h-5 w-5 text-blue-600" /> {showDeveloperSelect ? "Manual Time Entry" : "Log Time"}
+                    <Clock className="h-5 w-5 text-blue-600" /> {isEditMode ? "Edit Time Log" : (showDeveloperSelect ? "Manual Time Entry" : "Log Time")}
                 </CardTitle>
                 <CardDescription>
-                    {showDeveloperSelect ? "Log hours for a developer." : "Enter your task details and hours spent."}
+                    {isEditMode ? "Update the details of your pending time log." : (showDeveloperSelect ? "Log hours for a developer." : "Enter your task details and hours spent.")}
                 </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
@@ -353,7 +372,7 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
                         </div>
                     )}
 
-                    {showDeveloperSelect && (
+                    {showDeveloperSelect && !isEditMode && (
                         <div className="space-y-2">
                             <Label htmlFor="developer">Assign to Developer</Label>
                             <div className="relative">
@@ -520,7 +539,7 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
                         ) : (
                             <Send className="h-5 w-5 mr-2" />
                         )}
-                        {showDeveloperSelect ? "Add Developer Time Log" : "Submit Time Log"}
+                        {isEditMode ? "Save Changes" : (showDeveloperSelect ? "Add Developer Time Log" : "Submit Time Log")}
                     </Button>
                 </form>
             </CardContent>
