@@ -53,18 +53,18 @@ export default function TimesheetsPage() {
     const pendingHours = filteredLogs.reduce((sum, log) => sum + (log.status === 'pending' ? log.hours : 0), 0);
 
     return (
-        <div className="bg-slate-50/50 min-h-screen p-8 lg:p-12">
-            <div className="max-w-6xl mx-auto space-y-8">
+        <div className="bg-slate-50/50 min-h-screen p-4 md:p-8 lg:p-12">
+            <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-blue-600 rounded-2xl shadow-lg shadow-blue-200">
                             <Clock className="h-8 w-8 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight text-slate-900">My Timesheets</h1>
-                            <p className="text-slate-500">Log your daily tasks and track approval status.</p>
+                            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">My Timesheets</h1>
+                            <p className="text-sm md:text-base text-slate-500">Log your daily tasks and track approval status.</p>
                         </div>
                     </div>
                     <Button

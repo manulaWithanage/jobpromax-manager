@@ -188,8 +188,8 @@ export default function ManagerTimesheetsPage() {
     if (!isManager) return <AccessDenied />;
 
     return (
-        <div className="bg-slate-50/50 min-h-screen p-8 lg:p-12">
-            <div className="max-w-7xl mx-auto space-y-8">
+        <div className="bg-slate-50/50 min-h-screen p-4 md:p-8 lg:p-12">
+            <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
 
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -209,7 +209,7 @@ export default function ManagerTimesheetsPage() {
                         )}
                         <div>
                             <div className="flex items-center gap-2">
-                                <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+                                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
                                     {selectedDev ? `${selectedDev.name}'s Timesheets` : "Team Timesheets"}
                                 </h1>
                                 {selectedDevId && (
@@ -226,12 +226,12 @@ export default function ManagerTimesheetsPage() {
                                     </Button>
                                 )}
                             </div>
-                            <p className="text-slate-500">
+                            <p className="text-sm md:text-base text-slate-500">
                                 {selectedDev ? `Detailed audit and history for ${selectedDev.name}.` : "Review, approve, and audit developer time logs."}
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                         <Button
                             variant="outline"
                             onClick={() => router.push('/manager/performance')}

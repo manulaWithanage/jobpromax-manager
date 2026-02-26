@@ -72,15 +72,23 @@ export default function ManagerSharedLinksPage() {
 
     const handleCreateLink = async () => {
         setIsCreating(true);
-        const result = await createSharedInvoiceLink(month, year, period);
-        if (result.success && result.url) {
-            alert("Link generated and copied to clipboard!");
-            navigator.clipboard.writeText(result.url);
-            fetchLinks();
-        } else {
-            alert(result.error || "Failed to generate link");
+        try {
+            console.log('Sending request for:', month, year, period);
+            const result = await createSharedInvoiceLink(month, year, period);
+            console.log('Result received:', result);
+            if (result.success && result.url) {
+                alert("Link generated and copied to clipboard!");
+                navigator.clipboard.writeText(result.url);
+                fetchLinks();
+            } else {
+                alert(result.error || "Failed to generate link. Check server logs.");
+            }
+        } catch (error: any) {
+            console.error('Frontend error calling createSharedInvoiceLink:', error);
+            alert(`Unexpected error: ${error.message}`);
+        } finally {
+            setIsCreating(false);
         }
-        setIsCreating(false);
     };
 
     const handleCopy = (token: string) => {

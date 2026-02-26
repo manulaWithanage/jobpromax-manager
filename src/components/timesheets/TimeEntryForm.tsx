@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
-import { Clock, Ticket, FileText, Send, Loader2, User as UserIcon, Briefcase, Zap } from "lucide-react";
+import { Clock, Ticket, FileText, Send, Loader2, User as UserIcon, Briefcase, Zap, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TimeLog } from "@/types";
 
@@ -43,6 +43,7 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
     });
 
     const [ticketInput, setTicketInput] = useState("");
+    const [isRewriting, setIsRewriting] = useState(false);
 
     // Identify edit mode
     const isEditMode = !!initialData;
@@ -139,6 +140,37 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
         setTicketInput("");
     };
 
+    const handleRewrite = async () => {
+        if (!formData.summary || formData.summary.trim() === '') return;
+
+        setIsRewriting(true);
+        setError("");
+
+        try {
+            const res = await fetch('/api/ai/rewrite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ summary: formData.summary })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to rewrite summary');
+            }
+
+            if (data.rewrittenText) {
+                setFormData(prev => ({ ...prev, summary: data.rewrittenText }));
+                clearFieldError('summary');
+            }
+        } catch (err: any) {
+            console.error('Failed to rewrite summary', err);
+            setError(err.message || "Failed to rewrite summary with AI.");
+        } finally {
+            setIsRewriting(false);
+        }
+    };
+
     const removeTicket = (ticketToRemove: string) => {
         setFormData(prev => ({
             ...prev,
@@ -170,39 +202,39 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
 
     const WORK_CATEGORIES = [
         {
-            label: "💻 Development",
+            label: "Development",
             departments: ["Frontend", "Backend", "Infrastructure", "Frontend Development", "Backend Development"],
             options: [
-                { value: "feature", label: "✨ Feature - New functionality" },
-                { value: "bug", label: "🐛 Bug Fix - Fixing issues" },
-                { value: "refactor", label: "🔧 Refactor - Code improvement" },
-                { value: "testing", label: "🧪 Testing - QA & testing" },
-                { value: "documentation", label: "📚 Documentation - Docs & guides" },
+                { value: "feature", label: "Feature - New functionality" },
+                { value: "bug", label: "Bug Fix - Fixing issues" },
+                { value: "refactor", label: "Refactor - Code improvement" },
+                { value: "testing", label: "Testing - QA & testing" },
+                { value: "documentation", label: "Documentation - Docs & guides" },
             ]
         },
         {
-            label: "📊 Management",
+            label: "Management",
             departments: ["Management"],
             options: [
-                { value: "planning", label: "📋 Planning - Sprint planning" },
-                { value: "review", label: "👀 Review - Code/design review" },
-                { value: "meeting", label: "🤝 Meeting - Team meetings" },
+                { value: "planning", label: "Planning - Sprint planning" },
+                { value: "review", label: "Review - Code/design review" },
+                { value: "meeting", label: "Meeting - Team meetings" },
             ]
         },
         {
-            label: "📣 Marketing",
+            label: "Marketing",
             departments: ["Marketing", "Marketing & Growth"],
             options: [
-                { value: "content", label: "✍️ Content - Content creation" },
-                { value: "campaign", label: "🎯 Campaign - Marketing campaigns" },
-                { value: "analytics", label: "📈 Analytics - Data analysis" },
+                { value: "content", label: "Content - Content creation" },
+                { value: "campaign", label: "Campaign - Marketing campaigns" },
+                { value: "analytics", label: "Analytics - Data analysis" },
             ]
         },
         {
-            label: "📦 Other",
+            label: "Other",
             departments: ["Customer Success", ""], // Show for Customer Success or if No Department
             options: [
-                { value: "other", label: "📦 Other - Miscellaneous" },
+                { value: "other", label: "Other - Miscellaneous" },
             ]
         }
     ];
@@ -393,7 +425,7 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="date">Date <span className="text-red-500">*</span></Label>
                             <Input
@@ -510,7 +542,20 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="summary">Work Summary <span className="text-red-500">*</span></Label>
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="summary">Work Summary <span className="text-red-500">*</span></Label>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs flex items-center gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 transition-colors"
+                                onClick={handleRewrite}
+                                disabled={isRewriting || !formData.summary.trim() || formData.summary.length < 5}
+                            >
+                                {isRewriting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                                {isRewriting ? 'Rewriting...' : 'AI Rewrite'}
+                            </Button>
+                        </div>
                         <div className="relative">
                             <FileText className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                             <textarea

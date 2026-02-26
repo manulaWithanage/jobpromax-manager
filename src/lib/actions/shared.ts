@@ -13,14 +13,18 @@ export async function createSharedInvoiceLink(
     period: 'P1' | 'P2'
 ): Promise<{ success: boolean; url?: string; error?: string }> {
     try {
+        console.log(`[createSharedInvoiceLink] Start. Month: ${month}, Year: ${year}, Period: ${period}`);
         const user = await requireRole(['manager', 'finance']);
+        console.log(`[createSharedInvoiceLink] Authorized as ${user.email} (${user.role})`);
 
         await connectDB();
+        console.log(`[createSharedInvoiceLink] DB Connected`);
 
         // Check if link already exists for this period
-        let existingLink = await SharedLink.findOne({ month, year, period });
+        let existingLink = await SharedLink.findOne({ month: Number(month), year: Number(year), period });
 
         if (existingLink) {
+            console.log(`[createSharedInvoiceLink] Found existing link: ${existingLink.token}`);
             // Return existing link
             const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
             return {
@@ -29,17 +33,19 @@ export async function createSharedInvoiceLink(
             };
         }
 
+        console.log(`[createSharedInvoiceLink] Creating new link...`);
         // Create new link
         const token = crypto.randomUUID();
         const newLink = await SharedLink.create({
             token,
             type: 'invoice',
-            month,
-            year,
+            month: Number(month),
+            year: Number(year),
             period,
             createdBy: (user as any)._id || (user as any).id,
         });
 
+        console.log(`[createSharedInvoiceLink] Successfully created link: ${newLink.token}`);
         const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
         return {
             success: true,

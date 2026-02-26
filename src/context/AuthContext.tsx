@@ -65,14 +65,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 department: result.user.department,
             });
 
-            // Redirect based on role
-            if (result.user.role === 'manager') {
-                router.push('/manager/users');
-            } else if (result.user.role === 'developer') {
-                router.push('/timesheets');
-            } else {
-                router.push('/roadmap');
-            }
+            // Redirect to overview for all roles
+            router.push('/dashboard');
         } else {
             throw new Error(result.message || 'Login failed');
         }
