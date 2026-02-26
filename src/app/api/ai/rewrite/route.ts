@@ -8,9 +8,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Summary is required' }, { status: 400 });
         }
 
-        const apiKey = process.env['OPENAI-5-NANO'];
-        const uri = process.env['OPENAI-5-NANO-URI'];
-        const deployment = process.env['AZURE-DEPLOYMENT-5-NANO-NAME'];
+        const apiKey = process.env.GPT_5_NANO;
+        const uri = process.env.GPT_5_NANO_URI;
+        const deployment = process.env.AZURE_DEPLOYMENT_5_NANO_NAME;
 
         if (!apiKey || !uri || !deployment) {
             console.error('Missing Azure OpenAI environment variables');
