@@ -242,8 +242,15 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
     const filteredCategories = formData.userRole === 'manager'
         ? WORK_CATEGORIES
         : WORK_CATEGORIES.filter(cat => {
-            const userDepts: string[] = (formData as any).userDepartments || (formData.userDepartment ? [formData.userDepartment] : []);
-            return userDepts.some(dept => cat.departments.includes(dept)) || cat.label === "📦 Other";
+            const targetUser = users.find(u => u.id === formData.userId) || (currentUser?.id === formData.userId ? currentUser : null);
+            let userDepts: string[] = [];
+            if (targetUser) {
+                userDepts = (targetUser as any).departments || ((targetUser as any).department ? [(targetUser as any).department] : []);
+            }
+            if (userDepts.length === 0) {
+                userDepts = (formData as any).userDepartments || (formData.userDepartment ? [formData.userDepartment] : []);
+            }
+            return userDepts.some(dept => cat.departments.includes(dept)) || cat.label === "Other";
         });
 
     // Reset workType if it's no longer valid for the department
