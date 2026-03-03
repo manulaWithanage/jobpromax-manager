@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 
-export type UserRole = 'manager' | 'developer' | 'leadership' | 'finance';
+export type UserRole = 'manager' | 'developer' | 'leadership' | 'finance' | 'operation';
 
 export interface User {
     username: string;
@@ -17,9 +17,8 @@ interface RoleContextType {
     login: (username: string, role: UserRole) => void; // Deprecated
     logout: () => void;
     isManager: boolean;
-    isDeveloper: boolean;
-    isLeadership: boolean;
     isFinance: boolean;
+    isOperation: boolean;
     isAdmin: boolean;       // Deprecated
     isStakeholder: boolean; // Deprecated
     isLoading: boolean;
@@ -37,6 +36,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
         if (r === 'manager') return 'manager';
         if (r === 'developer') return 'developer';
         if (r === 'finance') return 'finance';
+        if (r === 'operation') return 'operation';
         return 'leadership';
     }, [authUser]);
 
@@ -50,6 +50,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     const isDeveloper = role === 'developer';
     const isLeadership = role === 'leadership';
     const isFinance = role === 'finance';
+    const isOperation = role === 'operation';
 
     const value = {
         role,
@@ -61,6 +62,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
         isDeveloper,
         isLeadership,
         isFinance,
+        isOperation,
         isAdmin: isManager,
         isStakeholder: isLeadership,
         isLoading: loading

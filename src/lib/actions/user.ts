@@ -64,7 +64,7 @@ export async function updateUserProfile(
     // Build the update object, only including defined values
     const updateFields: any = {};
 
-    const validDepartments = ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management'];
+    const validDepartments = ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management', 'QA'];
 
     // Handle departments array
     if (updates.departments !== undefined) {

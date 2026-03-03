@@ -77,7 +77,7 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps = {}) {
     const pathname = usePathname();
     const router = useRouter();
-    const { role, user, isManager, isFinance, logout } = useRole();
+    const { role, user, isManager, isFinance, isOperation, logout } = useRole();
 
     const isSharedView = pathname?.startsWith('/p/');
 
@@ -116,8 +116,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps = {}) {
                 {/* Navigation */}
                 {!isSharedView ? (
                     <div className="flex-1 px-4 space-y-8 overflow-y-auto">
-                        {/* Analytics Section (Leadership, Developer, Manager) */}
-                        {(role === 'leadership' || role === 'developer' || role === 'manager') && (
+                        {/* Analytics Section (Leadership, Developer, Manager, Operation) */}
+                        {(role === 'leadership' || role === 'developer' || role === 'manager' || role === 'operation') && (
                             <div className="space-y-1 animate-in slide-in-from-left-4 fade-in duration-500">
                                 <div className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
                                     <BarChart3 className="h-3 w-3" /> Analytics
@@ -134,14 +134,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps = {}) {
                                     icon={Map}
                                     isActive={pathname === '/roadmap'}
                                 />
-                                <NavItem
-                                    href="/status"
-                                    label="Feature Status"
-                                    icon={CheckCircle2}
-                                    isActive={pathname === '/status'}
-                                    disabled={user?.email !== 'manager@example.com'}
-                                    comingSoon={user?.email !== 'manager@example.com'}
-                                />
+                                {!isOperation && (
+                                    <NavItem
+                                        href="/status"
+                                        label="Feature Status"
+                                        icon={CheckCircle2}
+                                        isActive={pathname === '/status'}
+                                        disabled={user?.email !== 'manager@example.com'}
+                                        comingSoon={user?.email !== 'manager@example.com'}
+                                    />
+                                )}
                             </div>
                         )}
 
@@ -171,6 +173,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps = {}) {
                                     label="Team Timesheets"
                                     icon={Clock}
                                     isActive={pathname === '/manager/timesheets'}
+                                />
+                                <NavItem
+                                    href="/manager/approved-logs"
+                                    label="Approved Logs"
+                                    icon={CheckCircle2}
+                                    isActive={pathname === '/manager/approved-logs'}
                                 />
                                 <NavItem
                                     href="/manager/roadmap"

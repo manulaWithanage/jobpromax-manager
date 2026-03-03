@@ -10,8 +10,7 @@ export interface AuthUser {
     _id: mongoose.Types.ObjectId;
     name: string;
     email: string;
-    passwordHash: string;
-    role: 'manager' | 'developer' | 'leadership' | 'finance';
+    role: 'manager' | 'developer' | 'leadership' | 'finance' | 'operation';
     isSuperAdmin?: boolean;
     hourlyRate?: number;
     department?: 'Frontend' | 'Backend' | 'Marketing' | 'Customer Success' | 'Management';
@@ -40,7 +39,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
         // Connect to DB and fetch full user details
         await connectDB();
-        const user = await User.findById(payload.userId).lean();
+        const user = await User.findById(payload.userId).select('-passwordHash').lean();
 
         if (!user) {
             return null;

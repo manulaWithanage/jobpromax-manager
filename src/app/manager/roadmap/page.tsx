@@ -363,6 +363,13 @@ export default function ManagerRoadmapPage() {
                                                     {(!formData.deliverables || formData.deliverables.length === 0) && (
                                                         <p className="text-slate-400 text-sm italic">No deliverables added yet.</p>
                                                     )}
+                                                    {formData.deliverables && formData.deliverables.length > 0 && (
+                                                        <div className="flex justify-start pt-2 pb-2">
+                                                            <Button size="sm" variant="outline" onClick={addDeliverable}>
+                                                                <Plus className="h-3 w-3 mr-2" /> Add Item
+                                                            </Button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import { requireRole } from '@/lib/auth/serverAuth';
 
 export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        await requireRole(['manager']);
         await connectDB();
         const { id } = await params;
 
@@ -21,7 +23,7 @@ export async function DELETE(
         return NextResponse.json({ message: 'User deleted successfully' });
     } catch (error: any) {
         console.error('[API User DELETE] Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message || 'Unauthorized' }, { status: error.message.includes('Access denied') ? 403 : error.message.includes('Authentication') ? 401 : 500 });
     }
 }
 
@@ -30,6 +32,7 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        await requireRole(['manager']);
         await connectDB();
         const { id } = await params;
         const data = await request.json();
@@ -43,6 +46,6 @@ export async function PATCH(
         return NextResponse.json(user);
     } catch (error: any) {
         console.error('[API User PATCH] Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message || 'Unauthorized' }, { status: error.message.includes('Access denied') ? 403 : error.message.includes('Authentication') ? 401 : 500 });
     }
 }

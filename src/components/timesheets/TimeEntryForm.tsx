@@ -203,7 +203,7 @@ export function TimeEntryForm({ onSuccess, showDeveloperSelect = false, defaultD
     const WORK_CATEGORIES = [
         {
             label: "Development",
-            departments: ["Frontend", "Backend", "Infrastructure", "Frontend Development", "Backend Development"],
+            departments: ["Frontend", "Backend", "Infrastructure", "QA", "Frontend Development", "Backend Development"],
             options: [
                 { value: "feature", label: "Feature - New functionality" },
                 { value: "bug", label: "Bug Fix - Fixing issues" },

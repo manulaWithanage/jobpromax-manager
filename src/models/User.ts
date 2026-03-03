@@ -6,11 +6,11 @@ export interface IUser extends Document {
     name: string;
     email: string;
     passwordHash: string;
-    role: 'manager' | 'developer' | 'leadership' | 'finance';
+    role: 'manager' | 'developer' | 'leadership' | 'finance' | 'operation';
     isSuperAdmin?: boolean;
     hourlyRate?: number;
     department?: string;
-    departments?: ('Frontend' | 'Backend' | 'Infrastructure' | 'Marketing' | 'Customer Success' | 'Management')[];
+    departments?: ('Frontend' | 'Backend' | 'Infrastructure' | 'Marketing' | 'Customer Success' | 'Management' | 'QA')[];
     dailyHoursTarget?: number;
     bankDetails?: {
         accountName: string;
@@ -48,7 +48,7 @@ const UserSchema = new Schema<IUser>(
         role: {
             type: String,
             required: true,
-            enum: ['manager', 'developer', 'leadership', 'finance'],
+            enum: ['manager', 'developer', 'leadership', 'finance', 'operation'],
             default: 'developer',
         },
         isSuperAdmin: {
@@ -61,11 +61,11 @@ const UserSchema = new Schema<IUser>(
         },
         department: {
             type: String,
-            enum: ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management'],
+            enum: ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management', 'QA'],
         },
         departments: {
             type: [String],
-            enum: ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management'],
+            enum: ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management', 'QA'],
             default: [],
         },
         dailyHoursTarget: {

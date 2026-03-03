@@ -12,17 +12,51 @@ interface LoginResult {
     message?: string;
 }
 
+// In-memory rate limiter (For single instance / development)
+// In production with multiple instances, use Redis instead.
+const failedAttempts = new Map<string, { count: number; timestamp: number }>();
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+
 /**
  * Login with email and password
  * Creates JWT session on success
  */
 export async function login(email: string, password: string): Promise<LoginResult> {
     try {
+        const normalizedEmail = email.toLowerCase().trim();
+
+        // Rate limiting check
+        const attempt = failedAttempts.get(normalizedEmail);
+        if (attempt) {
+            const isLocked = attempt.count >= MAX_ATTEMPTS && Date.now() - attempt.timestamp < LOCKOUT_MS;
+            if (isLocked) {
+                return {
+                    success: false,
+                    message: 'Too many login attempts. Please try again in 15 minutes.',
+                };
+            }
+            // Reset if lockout period has passed
+            if (Date.now() - attempt.timestamp > LOCKOUT_MS) {
+                failedAttempts.delete(normalizedEmail);
+            }
+        }
+
         await connectDB();
 
         // Find user by email
-        const user = await User.findOne({ email: email.toLowerCase() });
+        const user = await User.findOne({ email: normalizedEmail });
+
+        const recordFailedAttempt = () => {
+            const current = failedAttempts.get(normalizedEmail);
+            failedAttempts.set(normalizedEmail, {
+                count: (current?.count || 0) + 1,
+                timestamp: Date.now()
+            });
+        };
+
         if (!user) {
+            recordFailedAttempt();
             return {
                 success: false,
                 message: 'Invalid email or password',
@@ -32,11 +66,15 @@ export async function login(email: string, password: string): Promise<LoginResul
         // Verify password
         const isPasswordValid = await user.comparePassword(password);
         if (!isPasswordValid) {
+            recordFailedAttempt();
             return {
                 success: false,
                 message: 'Invalid email or password',
             };
         }
+
+        // Reset rate limiter on success
+        failedAttempts.delete(normalizedEmail);
 
         // Create JWT token
         const token = await createToken({

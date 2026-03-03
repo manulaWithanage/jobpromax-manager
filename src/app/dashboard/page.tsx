@@ -18,7 +18,7 @@ import { getDeveloperDashboardMetrics, DeveloperDashboardMetrics } from "@/lib/a
 
 export default function DashboardPage() {
     const { users, roadmap, isLoading, refreshData } = useProject();
-    const { role, isAdmin } = useRole();
+    const { role, isAdmin, isOperation } = useRole();
     const { logs } = useTimeLog();
 
     const [kpiData, setKpiData] = useState<KPI[]>([]);
@@ -371,7 +371,7 @@ export default function DashboardPage() {
                                                 <div className="h-2 bg-slate-100 rounded animate-pulse" />
                                                 <div className="h-2 bg-slate-100 rounded animate-pulse" />
                                             </div>
-                                        ) : devMetrics?.departmentDistribution.slice(0, 3).map((dept, i) => (
+                                        ) : devMetrics?.departmentDistribution.map((dept, i) => (
                                             <div key={i} className="mb-2">
                                                 <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-1">
                                                     <span className="text-slate-600 truncate mr-2">{dept.department}</span>

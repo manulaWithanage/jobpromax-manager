@@ -1,6 +1,9 @@
 import { jwtVerify, SignJWT } from 'jose';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('FATAL: JWT_SECRET environment variable is not set.');
+}
 const secret = new TextEncoder().encode(JWT_SECRET);
 
 export interface JWTPayload {
@@ -37,10 +40,6 @@ export async function createToken(user: JWTPayload): Promise<string> {
  */
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
     try {
-        if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-            console.error('CRITICAL: JWT_SECRET is not set in production! This will cause session issues after deployment.');
-        }
-
         const { payload } = await jwtVerify(token, secret);
         return payload as unknown as JWTPayload;
     } catch (error: any) {

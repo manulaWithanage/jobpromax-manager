@@ -324,6 +324,7 @@ function UserEditModal({ user, isOpen, onClose }: { user: User; isOpen: boolean;
         { value: 'Infrastructure', label: 'Infrastructure' },
         { value: 'Marketing', label: 'Marketing' },
         { value: 'Customer Success', label: 'Customer Success' },
+        { value: 'QA', label: 'QA' },
         { value: 'Management', label: 'Management' },
     ];
 
@@ -398,6 +399,7 @@ function UserEditModal({ user, isOpen, onClose }: { user: User; isOpen: boolean;
                                         <option value="manager">Manager</option>
                                         <option value="finance">Finance Manager</option>
                                         <option value="leadership">Leadership</option>
+                                        <option value="operation">Operation</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">
@@ -774,6 +776,7 @@ export default function UserManagementPage() {
                                         <option value="manager">Manager</option>
                                         <option value="finance">Finance Manager</option>
                                         <option value="leadership">Leadership</option>
+                                        <option value="operation">Operation</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">
@@ -806,6 +809,7 @@ export default function UserManagementPage() {
                                             { value: 'Infrastructure', label: 'Infrastructure' },
                                             { value: 'Marketing', label: 'Marketing' },
                                             { value: 'Customer Success', label: 'Customer Success' },
+                                            { value: 'QA', label: 'QA' },
                                             { value: 'Management', label: 'Management' },
                                         ].map((dept) => {
                                             const isSelected = (newUser.departments || []).includes(dept.value);
@@ -822,8 +826,8 @@ export default function UserManagementPage() {
                                                         }
                                                     }}
                                                     className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border cursor-pointer select-none ${isSelected
-                                                            ? 'bg-blue-100 border-blue-200 text-blue-700 shadow-sm outline-none ring-2 ring-blue-500/20'
-                                                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                        ? 'bg-blue-100 border-blue-200 text-blue-700 shadow-sm outline-none ring-2 ring-blue-500/20'
+                                                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                                                         }`}
                                                 >
                                                     {dept.label}
