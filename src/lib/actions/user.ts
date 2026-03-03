@@ -48,7 +48,7 @@ export async function updateUserProfile(
     updates: {
         name?: string;
         email?: string;
-        role?: 'manager' | 'developer' | 'leadership' | 'finance';
+        role?: 'manager' | 'developer' | 'leadership' | 'finance' | 'operation';
         hourlyRate?: number;
         department?: string;
         departments?: string[];
