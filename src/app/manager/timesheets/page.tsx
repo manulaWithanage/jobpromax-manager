@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
-import { ShieldCheck, UserCheck, Clock, Users, AlertCircle, History as HistoryIcon, Plus, Minus, ChevronRight, ArrowLeft, BarChart3, FileDown, Calculator, PieChart as PieIcon, TrendingUp, Settings, Calendar } from "lucide-react";
+import { ShieldCheck, UserCheck, Clock, Users, AlertCircle, History as HistoryIcon, Plus, Minus, ChevronRight, ArrowLeft, BarChart3, FileDown, Calculator, PieChart as PieIcon, TrendingUp, Settings, Calendar, Eye, EyeOff } from "lucide-react";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend
@@ -42,6 +42,7 @@ export default function ManagerTimesheetsPage() {
     const [filterStart, setFilterStart] = useState<string>(formatYMD(firstDay));
     const [filterEnd, setFilterEnd] = useState<string>(formatYMD(lastDay));
     const [showAllTime, setShowAllTime] = useState(false);
+    const [showHourlyRate, setShowHourlyRate] = useState(false);
 
     // Robustly identify developers (from users list + those who have logs)
     const developers = useMemo(() => {
@@ -324,6 +325,23 @@ export default function ManagerTimesheetsPage() {
                                     Full historical data
                                 </span>
                             )}
+
+                            <div className="pl-3 border-l border-slate-100">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowHourlyRate(!showHourlyRate)}
+                                    className={cn(
+                                        "h-8 gap-1.5 text-xs font-bold rounded-lg transition-all",
+                                        showHourlyRate
+                                            ? "text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
+                                            : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                                    )}
+                                >
+                                    {showHourlyRate ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                                    Rates
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </Card>
@@ -365,17 +383,19 @@ export default function ManagerTimesheetsPage() {
                                     <p className="text-xs text-slate-400">Members with logs</p>
                                 </CardContent>
                             </Card>
-                            <Card className="border-none shadow-sm bg-white border-l-4 border-l-indigo-600 bg-indigo-50/20">
-                                <CardHeader className="pb-2">
-                                    <CardDescription className="flex items-center gap-2 text-indigo-600">
-                                        <Calculator className="h-4 w-4" /> Team Billing
-                                    </CardDescription>
-                                    <CardTitle className="text-2xl font-black text-indigo-700">${teamFinancials.totalPayout.toLocaleString()}</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-xs text-indigo-400 font-medium">Estimated payout total</p>
-                                </CardContent>
-                            </Card>
+                            {showHourlyRate && (
+                                <Card className="border-none shadow-sm bg-white border-l-4 border-l-indigo-600 bg-indigo-50/20">
+                                    <CardHeader className="pb-2">
+                                        <CardDescription className="flex items-center gap-2 text-indigo-600">
+                                            <Calculator className="h-4 w-4" /> Team Billing
+                                        </CardDescription>
+                                        <CardTitle className="text-2xl font-black text-indigo-700">${teamFinancials.totalPayout.toLocaleString()}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-xs text-indigo-400 font-medium">Estimated payout total</p>
+                                    </CardContent>
+                                </Card>
+                            )}
                         </div>
 
                         {/* Team Overview Table */}
@@ -391,7 +411,7 @@ export default function ManagerTimesheetsPage() {
                                             <TableHead>Department</TableHead>
                                             <TableHead>Approved Hours</TableHead>
                                             <TableHead>Pending Hours</TableHead>
-                                            <TableHead>Hourly Rate</TableHead>
+                                            {showHourlyRate && <TableHead>Hourly Rate</TableHead>}
                                             <TableHead>Last Activity</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
@@ -433,11 +453,13 @@ export default function ManagerTimesheetsPage() {
                                                         {dev.pendingHours.toFixed(1)}h
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell>
-                                                    <span className="text-slate-600 font-medium">
-                                                        {dev.hourlyRate ? `$${dev.hourlyRate}/hr` : '--'}
-                                                    </span>
-                                                </TableCell>
+                                                {showHourlyRate && (
+                                                    <TableCell>
+                                                        <span className="text-slate-600 font-medium">
+                                                            {dev.hourlyRate ? `$${dev.hourlyRate}/hr` : '--'}
+                                                        </span>
+                                                    </TableCell>
+                                                )}
                                                 <TableCell className="text-slate-500 text-sm">{dev.lastActivity}</TableCell>
                                                 <TableCell className="text-right">
                                                     <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold gap-1">
@@ -703,30 +725,32 @@ export default function ManagerTimesheetsPage() {
                                 </Card>
 
                                 {/* Financial Insight Card */}
-                                <Card className={cn(
-                                    "border-none shadow-sm bg-white border-l-4 transition-all hover:shadow-md",
-                                    financialStats.payout > 0 ? "border-l-indigo-600 bg-indigo-50/30" : "border-l-slate-200 bg-slate-50 opacity-80"
-                                )}>
-                                    <CardContent className="p-4 flex items-center gap-4">
-                                        <div className={cn(
-                                            "h-10 w-10 rounded-lg flex items-center justify-center font-black shrink-0 text-xs",
-                                            financialStats.payout > 0 ? "bg-indigo-100 text-indigo-700" : "bg-slate-200 text-slate-400"
-                                        )}>
-                                            ${financialStats.payout.toFixed(0)}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estimated Payout</p>
-                                            <div className="flex items-center gap-1.5 min-w-0">
-                                                <p className={cn("text-xs font-semibold truncate", financialStats.payout > 0 ? "text-indigo-700" : "text-slate-500")}>
-                                                    Approved Billing
-                                                </p>
-                                                {financialStats.payout === 0 && (selectedDev?.hourlyRate || 0) === 0 && (
-                                                    <Badge variant="outline" className="text-[8px] h-3 px-1 border-slate-200 text-slate-400 font-bold bg-white">RATE NOT SET</Badge>
-                                                )}
+                                {showHourlyRate && (
+                                    <Card className={cn(
+                                        "border-none shadow-sm bg-white border-l-4 transition-all hover:shadow-md",
+                                        financialStats.payout > 0 ? "border-l-indigo-600 bg-indigo-50/30" : "border-l-slate-200 bg-slate-50 opacity-80"
+                                    )}>
+                                        <CardContent className="p-4 flex items-center gap-4">
+                                            <div className={cn(
+                                                "h-10 w-10 rounded-lg flex items-center justify-center font-black shrink-0 text-xs",
+                                                financialStats.payout > 0 ? "bg-indigo-100 text-indigo-700" : "bg-slate-200 text-slate-400"
+                                            )}>
+                                                ${financialStats.payout.toFixed(0)}
                                             </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estimated Payout</p>
+                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                    <p className={cn("text-xs font-semibold truncate", financialStats.payout > 0 ? "text-indigo-700" : "text-slate-500")}>
+                                                        Approved Billing
+                                                    </p>
+                                                    {financialStats.payout === 0 && (selectedDev?.hourlyRate || 0) === 0 && (
+                                                        <Badge variant="outline" className="text-[8px] h-3 px-1 border-slate-200 text-slate-400 font-bold bg-white">RATE NOT SET</Badge>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
                             </div>
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 {/* Daily Productivity Chart */}

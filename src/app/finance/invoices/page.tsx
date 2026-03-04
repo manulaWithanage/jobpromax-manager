@@ -10,8 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton, SkeletonCard, SkeletonTable } from "@/components/ui/Skeleton";
 import {
     Receipt, ArrowLeft, Check, Clock, DollarSign, Users,
-    Building2, AlertCircle
+    Building2, AlertCircle, Eye, EyeOff
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { getPaymentRecords, markPaymentAsPaid, markPaymentAsPending, PaymentRecord } from "@/lib/actions/finance";
 import { BankDetailsModal } from "@/components/finance/BankDetailsModal";
@@ -42,6 +43,7 @@ export default function TeamInvoicesPage() {
 
     // State for bank details modal
     const [viewingBankDetails, setViewingBankDetails] = useState<PaymentRecord | null>(null);
+    const [showRates, setShowRates] = useState(false);
 
     // Quick month presets
     const monthPresets = useMemo(() => {
@@ -210,42 +212,65 @@ export default function TeamInvoicesPage() {
                 </div>
 
                 {/* Period Selector */}
-                <div className="flex gap-2">
-                    {([
-                        { key: 'P1' as PeriodType, label: 'P1 (1-15)' },
-                        { key: 'P2' as PeriodType, label: 'P2 (16-End)' },
-                        { key: 'all' as PeriodType, label: 'Full Month' }
-                    ]).map(({ key, label }) => (
-                        <Button
-                            key={key}
-                            variant={selectedPeriod === key ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setSelectedPeriod(key)}
-                            className={selectedPeriod === key
-                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                                : 'border-slate-200'
-                            }
-                        >
-                            {label}
-                        </Button>
-                    ))}
-                </div>
+                <Card className="border-none shadow-sm bg-white p-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            {([
+                                { key: 'P1' as PeriodType, label: 'P1 (1-15)' },
+                                { key: 'P2' as PeriodType, label: 'P2 (16-End)' },
+                                { key: 'all' as PeriodType, label: 'Full Month' }
+                            ]).map(({ key, label }) => (
+                                <Button
+                                    key={key}
+                                    variant={selectedPeriod === key ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setSelectedPeriod(key)}
+                                    className={selectedPeriod === key
+                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                        : 'border-slate-200'
+                                    }
+                                >
+                                    {label}
+                                </Button>
+                            ))}
+                        </div>
+
+                        <div className="pl-3 border-l border-slate-100">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowRates(!showRates)}
+                                className={cn(
+                                    "h-8 gap-1.5 text-xs font-bold rounded-lg transition-all",
+                                    showRates
+                                        ? "text-emerald-600 bg-emerald-50 hover:bg-emerald-100"
+                                        : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                                )}
+                            >
+                                {showRates ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                                Rates
+                            </Button>
+                        </div>
+                    </div>
+                </Card>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Card className="border-none shadow-sm bg-white">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-emerald-100 rounded-lg">
-                                    <DollarSign className="h-5 w-5 text-emerald-600" />
+                <div className={cn("grid gap-4", showRates ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2")}>
+                    {showRates && (
+                        <Card className="border-none shadow-sm bg-white">
+                            <CardContent className="pt-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-emerald-100 rounded-lg">
+                                        <DollarSign className="h-5 w-5 text-emerald-600" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-slate-500">Total Payroll</p>
+                                        <p className="text-2xl font-bold text-slate-900">${totalAmount.toFixed(2)}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-slate-500">Total Payroll</p>
-                                    <p className="text-2xl font-bold text-slate-900">${totalAmount.toFixed(2)}</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <Card className="border-none shadow-sm bg-white">
                         <CardContent className="pt-6">
@@ -261,33 +286,37 @@ export default function TeamInvoicesPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-none shadow-sm bg-white">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-green-100 rounded-lg">
-                                    <Check className="h-5 w-5 text-green-600" />
+                    {showRates && (
+                        <Card className="border-none shadow-sm bg-white">
+                            <CardContent className="pt-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-green-100 rounded-lg">
+                                        <Check className="h-5 w-5 text-green-600" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-slate-500">Paid</p>
+                                        <p className="text-2xl font-bold text-green-600">${paidAmount.toFixed(2)}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-slate-500">Paid</p>
-                                    <p className="text-2xl font-bold text-green-600">${paidAmount.toFixed(2)}</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    )}
 
-                    <Card className="border-none shadow-sm bg-white">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-amber-100 rounded-lg">
-                                    <Clock className="h-5 w-5 text-amber-600" />
+                    {showRates && (
+                        <Card className="border-none shadow-sm bg-white">
+                            <CardContent className="pt-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-amber-100 rounded-lg">
+                                        <Clock className="h-5 w-5 text-amber-600" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-slate-500">Pending</p>
+                                        <p className="text-2xl font-bold text-amber-600">${pendingAmount.toFixed(2)}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-slate-500">Pending</p>
-                                    <p className="text-2xl font-bold text-amber-600">${pendingAmount.toFixed(2)}</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
 
                 {/* Members Table */}
@@ -305,8 +334,8 @@ export default function TeamInvoicesPage() {
                                 <TableHead className="font-semibold w-[25%] lg:w-[30%]">Member</TableHead>
                                 <TableHead className="font-semibold text-center w-[100px]">Period</TableHead>
                                 <TableHead className="font-semibold text-right w-[100px]">Hours</TableHead>
-                                <TableHead className="font-semibold text-right w-[120px]">Rate</TableHead>
-                                <TableHead className="font-semibold text-right w-[120px]">Amount</TableHead>
+                                {showRates && <TableHead className="font-semibold text-right w-[120px]">Rate</TableHead>}
+                                {showRates && <TableHead className="font-semibold text-right w-[120px]">Amount</TableHead>}
                                 <TableHead className="font-semibold text-center w-[120px]">Bank</TableHead>
                                 <TableHead className="font-semibold text-right w-[180px]">Status</TableHead>
                             </TableRow>
@@ -344,8 +373,8 @@ export default function TeamInvoicesPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right font-medium">{record.hours.toFixed(1)}h</TableCell>
-                                        <TableCell className="text-right text-slate-500">${record.hourlyRate}/hr</TableCell>
-                                        <TableCell className="text-right font-bold text-slate-900">${record.amount.toFixed(2)}</TableCell>
+                                        {showRates && <TableCell className="text-right text-slate-500">${record.hourlyRate}/hr</TableCell>}
+                                        {showRates && <TableCell className="text-right font-bold text-slate-900">${record.amount.toFixed(2)}</TableCell>}
                                         <TableCell className="text-center">
                                             {record.hasBankDetails ? (
                                                 <Button

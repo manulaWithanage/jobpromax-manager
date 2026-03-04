@@ -326,6 +326,7 @@ function UserEditModal({ user, isOpen, onClose }: { user: User; isOpen: boolean;
         { value: 'Customer Success', label: 'Customer Success' },
         { value: 'QA', label: 'QA' },
         { value: 'Management', label: 'Management' },
+        { value: 'Operation', label: 'Operation' },
     ];
 
     return (
@@ -811,6 +812,7 @@ export default function UserManagementPage() {
                                             { value: 'Customer Success', label: 'Customer Success' },
                                             { value: 'QA', label: 'QA' },
                                             { value: 'Management', label: 'Management' },
+                                            { value: 'Operation', label: 'Operation' },
                                         ].map((dept) => {
                                             const isSelected = (newUser.departments || []).includes(dept.value);
                                             return (

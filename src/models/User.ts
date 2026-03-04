@@ -10,7 +10,7 @@ export interface IUser extends Document {
     isSuperAdmin?: boolean;
     hourlyRate?: number;
     department?: string;
-    departments?: ('Frontend' | 'Backend' | 'Infrastructure' | 'Marketing' | 'Customer Success' | 'Management' | 'QA')[];
+    departments?: ('Frontend' | 'Backend' | 'Infrastructure' | 'Marketing' | 'Customer Success' | 'Management' | 'QA' | 'Operation')[];
     dailyHoursTarget?: number;
     bankDetails?: {
         accountName: string;
@@ -61,11 +61,11 @@ const UserSchema = new Schema<IUser>(
         },
         department: {
             type: String,
-            enum: ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management', 'QA'],
+            enum: ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management', 'QA', 'Operation'],
         },
         departments: {
             type: [String],
-            enum: ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management', 'QA'],
+            enum: ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management', 'QA', 'Operation'],
             default: [],
         },
         dailyHoursTarget: {
@@ -106,7 +106,10 @@ UserSchema.set('toJSON', {
     },
 });
 
-// Prevent model recompilation in development
-const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
+// Prevent model recompilation in development, but allow schema updates
+if (mongoose.models.User) {
+    delete mongoose.models.User;
+}
+const User: Model<IUser> = mongoose.model<IUser>('User', UserSchema);
 
 export default User;

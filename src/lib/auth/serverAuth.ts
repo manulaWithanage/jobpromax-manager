@@ -13,7 +13,7 @@ export interface AuthUser {
     role: 'manager' | 'developer' | 'leadership' | 'finance' | 'operation';
     isSuperAdmin?: boolean;
     hourlyRate?: number;
-    department?: 'Frontend' | 'Backend' | 'Marketing' | 'Customer Success' | 'Management';
+    department?: 'Frontend' | 'Backend' | 'Marketing' | 'Customer Success' | 'Management' | 'Operation';
     dailyHoursTarget?: number;
     createdAt?: Date;
     updatedAt?: Date;

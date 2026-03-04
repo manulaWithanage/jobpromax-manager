@@ -134,16 +134,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps = {}) {
                                     icon={Map}
                                     isActive={pathname === '/roadmap'}
                                 />
-                                {!isOperation && (
-                                    <NavItem
-                                        href="/status"
-                                        label="Feature Status"
-                                        icon={CheckCircle2}
-                                        isActive={pathname === '/status'}
-                                        disabled={user?.email !== 'manager@example.com'}
-                                        comingSoon={user?.email !== 'manager@example.com'}
-                                    />
-                                )}
+                                <NavItem
+                                    href="/status"
+                                    label="Feature Status"
+                                    icon={CheckCircle2}
+                                    isActive={pathname === '/status'}
+                                />
                             </div>
                         )}
 

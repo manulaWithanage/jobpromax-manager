@@ -27,7 +27,7 @@ export async function getTimeLogs(filters?: TimeLogFilters): Promise<TimeLogType
     if (user.role === 'developer') {
         query.userId = user.id;
     } else if (filters?.userId) {
-        // Managers can filter by userId
+        // Managers and Operations can filter by userId
         query.userId = filters.userId;
     }
 

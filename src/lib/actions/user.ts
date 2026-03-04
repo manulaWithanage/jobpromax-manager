@@ -15,7 +15,7 @@ import { revalidatePath } from 'next/cache';
  * Authorization: Manager or Finance role
  */
 export async function getUsers(): Promise<UserType[]> {
-    await requireRole(['manager', 'finance']);
+    await requireRole(['manager', 'finance', 'operation']);
     await connectDB();
 
     const users = await User.find({}).select('-passwordHash').lean();
@@ -64,7 +64,7 @@ export async function updateUserProfile(
     // Build the update object, only including defined values
     const updateFields: any = {};
 
-    const validDepartments = ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management', 'QA'];
+    const validDepartments = ['Frontend', 'Backend', 'Infrastructure', 'Marketing', 'Customer Success', 'Management', 'QA', 'Operation'];
 
     // Handle departments array
     if (updates.departments !== undefined) {
@@ -175,7 +175,7 @@ export async function createUser(data: {
     name: string;
     email: string;
     password: string;
-    role: 'manager' | 'developer' | 'leadership';
+    role: 'manager' | 'developer' | 'leadership' | 'finance' | 'operation';
     hourlyRate?: number;
     department?: string;
     departments?: string[];
